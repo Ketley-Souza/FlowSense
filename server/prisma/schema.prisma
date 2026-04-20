@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+//usando enums para evitar erro de syntax que possam explodir o banco
+enum Prioridade {
+  VERDE
+  AMARELO
+  VERMELHO
+}
+enum RiscoAtraso {
+  NORMAL
+  ALERTA
+  CRITICO
+}
+enum Perfil {
+  ADMIN
+  GERENTE
+  USUARIO
+}
+//models
+model Usuario {
+  id      String @id @default(uuid())
+  nome    String
+  email   String @unique
+  login   String @unique
+  senha   String
+  perfil  Perfil @default(USUARIO)
+
+  projetosGerenciados Projeto[]       @relation("GerenteDoProjeto")
+  projetosMembro      ProjetoMembro[]
+  tarefasResponsaveis Tarefa[]        @relation("ResponsavelPelaTarefa")
+  tarefasMembro       TarefaMembro[]
+  comentarios         Comentario[]
+  notificacoes        Notificacao[]
+  historicos          HistoricoTarefa[]
+
+  createdAt DateTime @default(now())
+}
+model Projeto {
+  id         String   @id @default(uuid())
+  nome       String
+  id_gerente String
+  gerente    Usuario  @relation("GerenteDoProjeto", fields: [id_gerente], references: [id])
+
+  membros    ProjetoMembro[]
+  colunas    ColunaKanban[]
+  tarefas    Tarefa[]
+  createdAt  DateTime @default(now())
+}
+model ProjetoMembro {
+  id_projeto String
+  id_usuario String
+  projeto    Projeto @relation(fields: [id_projeto], references: [id])
+  usuario    Usuario @relation(fields: [id_usuario], references: [id])
+
+  @@id([id_projeto, id_usuario])
+}
+model ColunaKanban {
+  id         String   @id @default(uuid())
+  nome       String
+  id_projeto String
+  projeto    Projeto  @relation(fields: [id_projeto], references: [id])
+  tarefas    Tarefa[]
+}
+model Tarefa {
+  id                  String      @id @default(uuid())
+  titulo              String
+  descricao           String?
+  data_criacao        DateTime    @default(now())
+  prazo               DateTime?
+  prioridade          Prioridade  @default(VERDE)
+  status_risco_atraso RiscoAtraso @default(NORMAL)
+
+  id_responsavel      String
+  responsavel         Usuario     @relation("ResponsavelPelaTarefa", fields: [id_responsavel], references: [id])
+  
+  id_coluna           String?
+  coluna              ColunaKanban? @relation(fields: [id_coluna], references: [id])
+
+  id_projeto          String
+  projeto             Projeto     @relation(fields: [id_projeto], references: [id])
+
+  membros             TarefaMembro[]
+  comentarios         Comentario[]
+  notificacoes        Notificacao[]
+  historicos          HistoricoTarefa[]
+}
+model TarefaMembro {
+  id_tarefa  String
+  id_usuario String
+  tarefa     Tarefa  @relation(fields: [id_tarefa], references: [id])
+  usuario    Usuario @relation(fields: [id_usuario], references: [id])
+
+  @@id([id_tarefa, id_usuario])
+}
+model Comentario {
+  id         String   @id @default(uuid())
+  texto      String
+  data_hora  DateTime @default(now())
+  
+  id_usuario String
+  usuario    Usuario  @relation(fields: [id_usuario], references: [id])
+  
+  id_tarefa  String
+  tarefa     Tarefa   @relation(fields: [id_tarefa], references: [id])
+}
+model Notificacao {
+  id               String   @id @default(uuid())
+  tipo_alteracao   String
+  data_notificacao DateTime @default(now())
+  
+  id_usuario       String
+  usuario          Usuario  @relation(fields: [id_usuario], references: [id])
+  
+  id_tarefa        String
+  tarefa           Tarefa   @relation(fields: [id_tarefa], references: [id])
+}
+model HistoricoTarefa {
+  id             String   @id @default(uuid())
+  tipo_alteracao String
+  data_hora      DateTime @default(now())
+  
+  id_usuario     String
+  usuario        Usuario  @relation(fields: [id_usuario], references: [id])
+  
+  id_tarefa      String
+  tarefa         Tarefa   @relation(fields: [id_tarefa], references: [id])
+}
