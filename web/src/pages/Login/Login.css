@@ -1,0 +1,203 @@
+/* ===== RESET LOCAL ===== */
+.login-page {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  width: 1100px;
+  height: 620px;
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== ESQUERDA ===== */
+.left {
+  width: 50%;
+  background: linear-gradient(135deg, #5f5bff, #6c2bd9);
+  color: white;
+  padding: 80px 70px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.left h1 {
+  font-size: 36px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.left p {
+  font-size: 14px;
+  line-height: 1.7;
+  opacity: 0.9;
+  max-width: 380px;
+}
+
+.start {
+  margin-top: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* ===== DIREITA ===== */
+.right {
+  width: 50%;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== FORM ===== */
+.form-box {
+  width: 75%;
+}
+
+.form-box h2 {
+  font-size: 26px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 25px;
+}
+
+/* ===== LABEL ===== */
+label {
+  font-size: 12.5px;
+  color: #374151;
+  margin-top: 15px;
+  display: block;
+}
+
+/* ===== INPUT ===== */
+.input-group {
+  position: relative;
+}
+
+.icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+input {
+  width: 100%;
+  padding: 12px 12px 12px 38px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  background: white;
+}
+
+input:focus {
+  border-color: #6c2bd9;
+  box-shadow: 0 0 0 2px rgba(108, 43, 217, 0.1);
+  outline: none;
+}
+
+/* ===== LINK ===== */
+.forgot {
+  display: block;
+  text-align: right;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c2bd9;
+  text-decoration: none;
+}
+
+/* ===== BOTÃO ===== */
+.btn-login {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #5f5bff, #6c2bd9);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-login:hover {
+  opacity: 0.95;
+}
+
+/* ===== DIVISOR ===== */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 22px 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.divider span {
+  margin: 0 10px;
+}
+
+/* ===== GOOGLE ===== */
+.btn-google {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  cursor: pointer;
+}
+
+.btn-google:hover {
+  background: #f3f4f6;
+}
+
+.btn-google img {
+  width: 18px;
+}
+
+/* ===== FINAL ===== */
+.signup {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.signup a {
+  color: #6c2bd9;
+  text-decoration: none;
+  font-weight: 500;
+}
