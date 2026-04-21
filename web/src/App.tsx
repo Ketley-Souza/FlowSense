@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login/Login";
+import Register from "./pages/Login/Register";
 
 function App() {
   return (
@@ -10,6 +11,9 @@ function App() {
 
         {/* página de login */}
         <Route path="/login" element={<Login />} />
+
+        {/* ✅ ADICIONA ISSO */}
+        <Route path="/register" element={<Register />} />
       </Routes>
     </BrowserRouter>
   );

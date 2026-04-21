@@ -1,5 +1,6 @@
 import "./Login.css";
 
+
 export default function Login() {
   return (
     <div className="login-page">
@@ -55,7 +56,7 @@ export default function Login() {
             </button>
 
             <p className="signup">
-              Não tem uma conta? <a href="#">Criar conta</a>
+              Não tem uma conta? <a href="/register">Criar conta</a>
             </p>
           </div>
         </div>
