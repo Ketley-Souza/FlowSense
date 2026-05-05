@@ -1,7 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { isAutenticado } from "@/services/auth";
 
 export default function PrivateRoute() {
-  const isAuthenticated = true; // depois: redux ou token
-
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+  return isAutenticado() ? <Outlet /> : <Navigate to="/login" />;
 }

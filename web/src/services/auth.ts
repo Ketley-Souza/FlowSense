@@ -1,0 +1,65 @@
+import api from "./api";
+
+export interface Usuario {
+  id: string;
+  nome: string;
+  email: string;
+  login: string;
+  foto_url: string | null;
+  perfil: "ADMIN" | "GERENTE" | "USUARIO";
+  createdAt: string;
+}
+
+interface LoginResponse {
+  token: string;
+  usuario: Usuario;
+}
+
+interface RegisterResponse {
+  message: string;
+  usuario: Usuario;
+}
+
+export async function login(
+  identificador: string,
+  senha: string
+): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>("/auth/login", {
+    identificador,
+    senha,
+  });
+
+  localStorage.setItem("flowsense_token", data.token);
+  localStorage.setItem("flowsense_user", JSON.stringify(data.usuario));
+
+  return data;
+}
+
+export async function registrar(payload: {
+  nome: string;
+  email: string;
+  login: string;
+  senha: string;
+}): Promise<RegisterResponse> {
+  const { data } = await api.post<RegisterResponse>("/auth/register", payload);
+  return data;
+}
+
+export function logout(): void {
+  localStorage.removeItem("flowsense_token");
+  localStorage.removeItem("flowsense_user");
+}
+
+export function getUsuarioLogado(): Usuario | null {
+  const raw = localStorage.getItem("flowsense_user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Usuario;
+  } catch {
+    return null;
+  }
+}
+
+export function isAutenticado(): boolean {
+  return !!localStorage.getItem("flowsense_token");
+}
