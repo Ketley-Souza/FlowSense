@@ -44,8 +44,8 @@ async function bootstrap() {
 
   await fastify.listen({ port: PORT, host: HOST });
 
-  console.log(`\n🚀 FlowSense API rodando em http://localhost:${PORT}`);
-  console.log(`📋 Health check: http://localhost:${PORT}/health\n`);
+  console.log(`\n rodando em http://localhost:${PORT}`);
+  console.log(`conferir integridade em http://localhost:${PORT}/health\n`);
 }
 
 bootstrap().catch((err) => {
