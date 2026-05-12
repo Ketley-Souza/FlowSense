@@ -6,6 +6,7 @@ import {
   criarTarefa,
   deletarTarefa,
   listarTarefas,
+  listarTarefasPorProjeto,
 } from "./tarefas.service";
 
 function handleServiceError(
@@ -18,7 +19,7 @@ function handleServiceError(
       statusCode: 400,
       error: "Bad Request",
       message: "Dados inválidos.",
-      detalhes: err.errors.map((e) => ({
+      detalhes: err.issues.map((e) => ({
         campo: e.path.join("."),
         mensagem: e.message,
       })),
@@ -67,12 +68,30 @@ export async function tarefasRoutes(fastify: FastifyInstance): Promise<void> {
     }
   );
 
+  fastify.get(
+    "/projetos/:id/tarefas",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const tarefas = await listarTarefasPorProjeto(
+          request.params.id,
+          request.user.sub
+        );
+        return reply.send(tarefas);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
   fastify.post(
     "/tarefas",
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tarefa = await criarTarefa(
-          request.body as Record<string, unknown>,
+          request.body as unknown,
           request.user.sub
         );
         return reply.code(201).send(tarefa);
@@ -91,7 +110,7 @@ export async function tarefasRoutes(fastify: FastifyInstance): Promise<void> {
       try {
         const tarefa = await atualizarTarefa(
           request.params.id,
-          request.body as Record<string, unknown>,
+          request.body as unknown,
           request.user.sub
         );
         return reply.send(tarefa);

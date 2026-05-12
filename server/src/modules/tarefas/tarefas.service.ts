@@ -108,8 +108,37 @@ export async function listarTarefas(usuarioId: string) {
   return tarefas;
 }
 
+export async function listarTarefasPorProjeto(
+  projetoId: string,
+  usuarioId: string
+) {
+  await verificarMembroProjeto(projetoId, usuarioId);
+
+  const tarefas = await prisma.tarefa.findMany({
+    where: { id_projeto: projetoId },
+    include: {
+      responsavel: {
+        select: { id: true, nome: true, foto_url: true },
+      },
+      coluna: { select: { id: true, nome: true } },
+      projeto: { select: { id: true, nome: true } },
+      membros: {
+        include: {
+          usuario: { select: { id: true, nome: true, foto_url: true } },
+        },
+      },
+      tags: { include: { tag: true } },
+      subtarefas: { orderBy: { ordem: "asc" } },
+      _count: { select: { comentarios: true, anexos: true } },
+    },
+    orderBy: [{ ordem: "asc" }, { createdAt: "desc" }],
+  });
+
+  return tarefas;
+}
+
 export async function criarTarefa(
-  data: z.infer<typeof criarTarefaSchema>,
+  data: unknown,
   usuarioId: string
 ) {
   const payload = criarTarefaSchema.parse(data);
@@ -141,7 +170,7 @@ export async function criarTarefa(
 
 export async function atualizarTarefa(
   tarefaId: string,
-  data: z.infer<typeof atualizarTarefaSchema>,
+  data: unknown,
   usuarioId: string
 ) {
   const payload = atualizarTarefaSchema.parse(data);

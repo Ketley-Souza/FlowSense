@@ -3,6 +3,7 @@ import PrivateRoute from "@/routes/PrivateRoute";
 
 import Login from "@/pages/Login/Login";
 import Register from "@/pages/Cadastro/Register";
+import AtivarConta from "@/pages/AtivarConta";
 
 import Dashboard from "@/pages/Dashboard";
 import Kamban from "@/pages/Kamban";
@@ -21,6 +22,7 @@ export default function AppRoutes() {
         {/* Públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/ativar/:token" element={<AtivarConta />} />
 
         {/* Privadas */}
         <Route element={<PrivateRoute />}>

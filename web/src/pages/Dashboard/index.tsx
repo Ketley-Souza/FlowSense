@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarDays,
   CheckCircle,
@@ -9,6 +9,7 @@ import {
   Check,
   CircleDot,
 } from "lucide-react";
+import { useProjetosStore } from "@/store/useProjetosStore";
 
 /* ------------ tipagem das atividades recentes -------------- */
 type Activity = {
@@ -92,9 +93,17 @@ const initialActivities: Activity[] = [
 ];
 
 export default function DashboardPage() {
+  /* ------------ stores -------------- */
+  const { projetos, projetoAtual, listar, definirProjetoAtivo, carregando } = useProjetosStore();
+
   /* ------------ states -------------- */
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  /* ------------ efeitos -------------- */
+  useEffect(() => {
+    listar();
+  }, [listar]);
 
   /* ------------ ações das notificações/atividades -------------- */
   function markAsRead(id: number) {
@@ -125,11 +134,36 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#f8f9fc] p-8 pt-10">
       {/* ------------ título -------------- */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Visão geral dos seus projetos e tarefas
-        </p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Visão geral dos seus projetos e tarefas
+          </p>
+        </div>
+
+        {/* Seletor de Projeto Ativo */}
+        {projetos.length > 0 && (
+          <div className="flex flex-col items-end gap-2">
+            <label className="text-xs font-semibold text-slate-600">Projeto Ativo:</label>
+            <select
+              value={projetoAtual?.id || ""}
+              onChange={(e) => {
+                const projeto = projetos.find((p) => p.id === e.target.value);
+                definirProjetoAtivo(projeto || null);
+              }}
+              disabled={carregando}
+              className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm font-medium text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">Selecione um projeto...</option>
+              {projetos.map((projeto) => (
+                <option key={projeto.id} value={projeto.id}>
+                  {projeto.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* ------------ cards de resumo -------------- */}
@@ -239,7 +273,7 @@ export default function DashboardPage() {
 
           <div className="space-y-6">
             {activities.map((activity) => (
-              <div key={activity.id} className="relative flex gap-4">
+              <div key={activity.id} className="relative flex gap-4 group">
                 <span
                   className={`w-2 h-2 rounded-full mt-2 ${activity.color}`}
                 />
@@ -262,7 +296,46 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setOpenMenuId(openMenuId === activity.id ? null : activity.id)
+                    }
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded"
+                  >
+                    <MoreVertical size={16} className="text-slate-400" />
+                  </button>
+
+                  {openMenuId === activity.id && (
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 min-w-32">
+                      {!activity.read && (
+                        <button
+                          onClick={() => markAsRead(activity.id)}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <Check size={14} />
+                          Marcar como lido
+                        </button>
+                      )}
+                      {activity.read && (
+                        <button
+                          onClick={() => markAsUnread(activity.id)}
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <CircleDot size={14} />
+                          Marcar como não lido
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteActivity(activity.id)}
+                        className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t border-slate-200"
+                      >
+                        <Trash2 size={14} />
+                        Deletar
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
 

@@ -4,6 +4,9 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { tarefasRoutes } from "./modules/tarefas/tarefas.routes";
+import { projetosRoutes } from "./modules/projetos/projetos.routes";
+import { usuariosRoutes } from "./modules/usuarios/usuarios.routes";
+import { equipesRoutes } from "./modules/equipes/equipes.routes";
 
 const fastify = Fastify({
   logger: {
@@ -22,6 +25,7 @@ async function bootstrap() {
   await fastify.register(cors, {
     origin: process.env["FRONTEND_URL"] ?? true,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   await fastify.register(jwt, {
@@ -31,6 +35,9 @@ async function bootstrap() {
 
   await fastify.register(authRoutes);
   await fastify.register(tarefasRoutes);
+  await fastify.register(projetosRoutes);
+  await fastify.register(usuariosRoutes);
+  await fastify.register(equipesRoutes);
 
   fastify.get("/health", async () => ({
     status: "ok",
