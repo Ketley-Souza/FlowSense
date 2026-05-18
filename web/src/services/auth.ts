@@ -1,24 +1,5 @@
 import api from "./api";
-
-export interface Usuario {
-  id: string;
-  nome: string;
-  email: string;
-  login: string;
-  foto_url: string | null;
-  perfil: "ADMIN" | "GERENTE" | "USUARIO";
-  createdAt: string;
-}
-
-interface LoginResponse {
-  token: string;
-  usuario: Usuario;
-}
-
-interface RegisterResponse {
-  message: string;
-  usuario: Usuario;
-}
+import type { Usuario, LoginResponse, RegisterResponse } from "@/types";
 
 export async function login(
   identificador: string,

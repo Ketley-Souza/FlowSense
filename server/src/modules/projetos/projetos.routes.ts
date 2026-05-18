@@ -31,6 +31,14 @@ function handleServiceError(
 
   const error = err as NodeJS.ErrnoException;
 
+  if (error.code === "BAD_REQUEST") {
+    return reply.code(400).send({
+      statusCode: 400,
+      error: "Bad Request",
+      message: error.message,
+    });
+  }
+
   if (error.code === "NOT_FOUND") {
     return reply.code(404).send({
       statusCode: 404,

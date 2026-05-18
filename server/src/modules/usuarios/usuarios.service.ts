@@ -46,7 +46,62 @@ export async function criarUsuarioEquipe(data: unknown) {
   };
 }
 
-export async function listarUsuarios() {
+export async function listarUsuarios(usuarioId: string) {
+  // Retornar apenas usuários que o usuário atual conhece:
+  // 1. Usuários nas mesmas equipes
+  // 2. Usuários em projetos que o usuário participa
+  
+  const usuarioEquipes = await prisma.usuarioEquipe.findMany({
+    where: { usuario_id: usuarioId },
+    select: { equipe_id: true },
+  });
+
+  const equipeIds = usuarioEquipes.map((ue) => ue.equipe_id);
+
+  const usuarioProjetosQuePrticipa = await prisma.projetoMembro.findMany({
+    where: { id_usuario: usuarioId },
+    select: { id_projeto: true },
+  });
+
+  const projetoIds = usuarioProjetosQuePrticipa.map((pm) => pm.id_projeto);
+
+  // Buscar usuários nas mesmas equipes ou projetos
+  const usuarios = await prisma.usuario.findMany({
+    where: {
+      OR: [
+        {
+          usuarioEquipes: {
+            some: {
+              equipe_id: { in: equipeIds },
+            },
+          },
+        },
+        {
+          projetosMembro: {
+            some: {
+              id_projeto: { in: projetoIds },
+            },
+          },
+        },
+      ],
+      id: { not: usuarioId }, // Não incluir o próprio usuário
+    },
+    select: {
+      id: true,
+      nome: true,
+      email: true,
+      login: true,
+      foto_url: true,
+      perfil: true,
+    },
+  });
+
+  return usuarios;
+}
+
+// Versão antiga comentada
+/*
+export async function listarUsuariosAntigo() {
   const usuarios = await prisma.usuario.findMany({
     select: {
       id: true,
@@ -60,3 +115,4 @@ export async function listarUsuarios() {
 
   return usuarios;
 }
+*/

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditTaskModal } from "./EditTaskModal";
+import { ToastContainer, useToast } from "@/components/Toast";
 import { useTarefasStore } from "@/store/useTarefasStore";
 import { useProjetosStore } from "@/store/useProjetosStore";
 import type { Tarefa } from "@/store/types";
@@ -31,6 +32,7 @@ export default function Kanban() {
   } = useTarefasStore();
 
   const { projetoAtual } = useProjetosStore();
+  const toast = useToast();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -76,8 +78,9 @@ export default function Kanban() {
         id_projeto: idProjeto,
       });
       setCreateModalOpen(false);
+      toast.sucesso("Tarefa criada com sucesso!");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao criar tarefa");
+      toast.erro(err instanceof Error ? err.message : "Erro ao criar tarefa");
     }
   }
 
@@ -93,8 +96,9 @@ export default function Kanban() {
       await atualizar(tarefaSelecionada.id, payload);
       setEditModalOpen(false);
       setTarefaSelecionada(null);
+      toast.sucesso("Tarefa atualizada com sucesso!");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao atualizar tarefa");
+      toast.erro(err instanceof Error ? err.message : "Erro ao atualizar tarefa");
     }
   }
 
@@ -105,8 +109,9 @@ export default function Kanban() {
       await deletar(tarefaSelecionada.id);
       setEditModalOpen(false);
       setTarefaSelecionada(null);
+      toast.sucesso("Tarefa deletada com sucesso!");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao deletar tarefa");
+      toast.erro(err instanceof Error ? err.message : "Erro ao deletar tarefa");
     }
   }
 
@@ -467,6 +472,9 @@ export default function Kanban() {
         onDelete={handleDeletarTarefa}
         task={tarefaSelecionada || undefined}
       />
+
+      {/* Toast Container */}
+      <ToastContainer items={toast.toasts} onRemove={toast.remover} />
     </main>
   );
 }

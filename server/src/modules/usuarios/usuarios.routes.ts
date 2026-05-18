@@ -49,12 +49,12 @@ export async function usuariosRoutes(
     }
   );
 
-  // GET /usuarios - Listar todos os usuários
+  // GET /usuarios - Listar usuários relacionados (mesmas equipes ou projetos)
   fastify.get(
     "/usuarios",
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const usuarios = await listarUsuarios();
+        const usuarios = await listarUsuarios(request.user.sub);
         return reply.send(usuarios);
       } catch (err) {
         fastify.log.error(err);

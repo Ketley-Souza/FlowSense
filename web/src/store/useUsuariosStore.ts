@@ -1,11 +1,4 @@
-import { create } from "zustand";
-import { useEquipeStore } from "./useEquipeStore";
-
-interface UsuariosStore {
-  // Todas as ações foram movidas para useEquipeStore
-}
-
-export const useUsuariosStore = create<UsuariosStore>(() => ({}));
-
-// Re-export do store de equipe para compatibilidade
-export { useEquipeStore as usuariosStore };
+// Este store foi consolidado em useEquipesStore.
+// Mantido como stub para não quebrar imports futuros.
+// Importe useEquipesStore diretamente onde precisar de dados de equipe/usuários.
+export {};

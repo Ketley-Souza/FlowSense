@@ -84,6 +84,7 @@ model Equipe {
   nome      String
   descricao String?
   dono_id   String
+  eh_pessoal Boolean @default(false)
 
   dono              Usuario            @relation("DonoEquipe", fields: [dono_id], references: [id], onDelete: Cascade)
   usuarios          UsuarioEquipe[]

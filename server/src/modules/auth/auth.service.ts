@@ -70,13 +70,14 @@ export async function registrar(data: unknown) {
     },
   });
 
-  // Criar equipe padrão para o novo usuário
+  // Criar equipe pessoal para o novo usuário
   try {
     await prisma.equipe.create({
       data: {
-        nome: `Equipe de ${nome}`,
-        descricao: "Minha primeira equipe",
+        nome: `${nome} - Pessoal`,
+        descricao: "Sua equipe pessoal",
         dono_id: usuario.id,
+        eh_pessoal: true,
         usuarios: {
           create: {
             usuario_id: usuario.id,
@@ -88,7 +89,7 @@ export async function registrar(data: unknown) {
       },
     });
   } catch (error) {
-    console.error("Erro ao criar equipe padrão:", error);
+    console.error("Erro ao criar equipe pessoal:", error);
     // Não falhar se a equipe não for criada
   }
 

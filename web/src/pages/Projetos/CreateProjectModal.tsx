@@ -2,14 +2,9 @@ import React, { useState, useEffect } from "react";
 import { BaseModal } from "@/components/Modal";
 import { useEquipesStore } from "@/store/useEquipesStore";
 import { ChevronDown } from "lucide-react";
+import type { Usuario, Equipe, UsuarioEquipe } from "@/types";
 
 type Cargo = "GERENTE" | "MEMBRO";
-
-interface Usuario {
-  id: string;
-  nome: string;
-  email: string;
-}
 
 interface MembroProjeto {
   id_usuario: string;
@@ -22,6 +17,9 @@ interface CreateProjectModalProps {
   onSubmit: (data: {
     nome: string;
     descricao?: string;
+    equipe_id?: string;
+    data_inicio?: string;
+    data_fim?: string;
     membros?: MembroProjeto[];
   }) => Promise<void>;
 }
@@ -31,14 +29,19 @@ export function CreateProjectModal({
   onClose,
   onSubmit,
 }: CreateProjectModalProps) {
-  const usuarios = useEquipesStore(
-    (state) => state.usuarios
-  ) as Usuario[];
-
+  const equipes = useEquipesStore((state) => state.equipes) as Equipe[];
+  const usuariosEquipe = useEquipesStore((state) => state.usuarios) as UsuarioEquipe[];
   const listar = useEquipesStore((state) => state.listar);
+  const listarMembros = useEquipesStore((state) => state.listarMembros);
+
+  // Converter UsuarioEquipe[] para Usuario[]
+  const usuarios: Usuario[] = usuariosEquipe.map((ue) => ue.usuario);
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [equipeId, setEquipeId] = useState<string>("");
+  const [dataInicio, setDataInicio] = useState<string>("");
+  const [dataFim, setDataFim] = useState<string>("");
   const [carregando, setCarregando] = useState(false);
 
   const [membrosAdicionados, setMembrosAdicionados] = useState<MembroProjeto[]>(
@@ -52,6 +55,13 @@ export function CreateProjectModal({
       listar();
     }
   }, [isOpen, listar]);
+
+  // Carregar membros quando equipe é selecionada
+  useEffect(() => {
+    if (equipeId) {
+      listarMembros(equipeId).catch(console.error);
+    }
+  }, [equipeId, listarMembros]);
 
   function adicionarMembro(
     usuarioId: string,
@@ -108,6 +118,9 @@ export function CreateProjectModal({
       await onSubmit({
         nome,
         descricao: descricao || undefined,
+        equipe_id: equipeId || undefined,
+        data_inicio: dataInicio || undefined,
+        data_fim: dataFim || undefined,
         membros:
           membrosAdicionados.length > 0
             ? membrosAdicionados
@@ -116,6 +129,9 @@ export function CreateProjectModal({
 
       setNome("");
       setDescricao("");
+      setEquipeId("");
+      setDataInicio("");
+      setDataFim("");
       setMembrosAdicionados([]);
 
       onClose();
@@ -138,6 +154,7 @@ export function CreateProjectModal({
               onClose();
               setNome("");
               setDescricao("");
+              setEquipeId("");
               setMembrosAdicionados([]);
             }}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -184,6 +201,25 @@ export function CreateProjectModal({
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Equipe (opcional)
+          </label>
+
+          <select
+            value={equipeId}
+            onChange={(e) => setEquipeId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Nenhuma equipe</option>
+            {equipes.map((equipe) => (
+              <option key={equipe.id} value={equipe.id}>
+                {equipe.nome}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

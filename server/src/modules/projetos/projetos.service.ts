@@ -7,6 +7,7 @@ export const criarProjetoSchema = z.object({
   data_inicio: z.string().datetime().optional(),
   data_fim: z.string().datetime().optional(),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor deve ser um código hexadecimal válido").optional(),
+  equipe_id: z.string().uuid("ID da equipe inválido").optional(),
   membros: z
     .array(
       z.object({
@@ -142,6 +143,24 @@ export async function criarProjeto(
     }
   }
 
+  // Se equipe_id foi fornecido, validar se o usuário é membro da equipe
+  if (payload.equipe_id) {
+    const membroEquipe = await prisma.usuarioEquipe.findUnique({
+      where: {
+        usuario_id_equipe_id: {
+          usuario_id: usuarioId,
+          equipe_id: payload.equipe_id,
+        },
+      },
+    });
+
+    if (!membroEquipe) {
+      const error = new Error("Você não é membro dessa equipe.");
+      (error as NodeJS.ErrnoException).code = "FORBIDDEN";
+      throw error;
+    }
+  }
+
   // Nota: Não validamos se os usuários existem globalmente
   // para suportar membros locais da equipe (sem cadastro no sistema)
   // A segurança é mantida pela não exposição de todos os usuários do sistema
@@ -154,6 +173,7 @@ export async function criarProjeto(
       data_inicio: payload.data_inicio ? new Date(payload.data_inicio) : null,
       data_fim: payload.data_fim ? new Date(payload.data_fim) : null,
       cor: payload.cor || "#3B82F6",
+      equipe_id: payload.equipe_id || null,
     },
   });
 

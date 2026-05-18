@@ -8,6 +8,9 @@ import {
   convidarMembro,
   convidarMembroSchema,
   listarMembrosEquipe,
+  atualizarEquipe,
+  deletarEquipe,
+  listarMembrosDisponiveis,
 } from "./equipes.service";
 
 function handleServiceError(
@@ -120,4 +123,57 @@ export async function equipesRoutes(
       }
     }
   );
+
+  // PATCH /equipes/:id - Atualizar equipe
+  fastify.patch(
+    "/equipes/:id",
+    async (
+      request: FastifyRequest<{
+        Params: { id: string };
+        Body: { nome?: string; descricao?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const equipe = await atualizarEquipe(
+          request.user.sub,
+          request.params.id,
+          request.body
+        );
+        return reply.send(equipe);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // DELETE /equipes/:id - Deletar equipe
+  fastify.delete(
+    "/equipes/:id",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        await deletarEquipe(request.user.sub, request.params.id);
+        return reply.code(204).send();
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // GET /membros-disponiveis - Listar membros disponíveis para atribuir
+  fastify.get(
+    "/membros-disponiveis",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const membros = await listarMembrosDisponiveis(request.user.sub);
+        return reply.send(membros);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
 }
+

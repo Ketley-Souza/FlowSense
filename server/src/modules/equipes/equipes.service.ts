@@ -184,88 +184,8 @@ export async function convidarMembro(
   };
 }
 
-export async function obterTokenAtivacao(tokenPlain: string): Promise<any> {
-  const tokenHash = crypto.createHash("sha256").update(tokenPlain).digest("hex");
 
-  const token = await prisma.tokenAtivacao.findUnique({
-    where: { token: tokenHash },
-    include: {
-      usuario: { select: { id: true, nome: true, email: true } },
-      equipe: { select: { id: true, nome: true } },
-    },
-  });
 
-  if (!token) {
-    const error = new Error("Token inválido");
-    (error as any).code = "NOT_FOUND";
-    throw error;
-  }
-
-  if (token.utilizado) {
-    const error = new Error("Token já foi utilizado");
-    (error as any).code = "CONFLICT";
-    throw error;
-  }
-
-  if (new Date() > token.expira_em) {
-    const error = new Error("Token expirado");
-    (error as any).code = "CONFLICT";
-    throw error;
-  }
-
-  return token;
-}
-
-export async function ativarConta(
-  tokenPlain: string,
-  novoLogin: string,
-  novaSenha: string
-): Promise<{ mensagem: string; token: string }> {
-  const token = await obterTokenAtivacao(tokenPlain);
-
-  // Atualizar usuário
-  const usuario = await prisma.usuario.update({
-    where: { id: token.usuario_id },
-    data: {
-      status: "ATIVO",
-      login: novoLogin,
-      senha: novaSenha, // Em produção, fazer hash bcrypt
-    },
-  });
-
-  // Atualizar UsuarioEquipe
-  await prisma.usuarioEquipe.update({
-    where: {
-      usuario_id_equipe_id: {
-        usuario_id: token.usuario_id,
-        equipe_id: token.equipe_id,
-      },
-    },
-    data: {
-      status: "ATIVO",
-      ativado_em: new Date(),
-    },
-  });
-
-  // Marcar token como utilizado
-  await prisma.tokenAtivacao.update({
-    where: { id: token.id },
-    data: {
-      utilizado: true,
-      utilizado_em: new Date(),
-    },
-  });
-
-  // Gerar JWT (simular - em produção usar jwt library)
-  const jwtToken = Buffer.from(
-    JSON.stringify({ sub: usuario.id, email: usuario.email })
-  ).toString("base64");
-
-  return {
-    mensagem: "Conta ativada com sucesso!",
-    token: jwtToken,
-  };
-}
 
 export async function listarMembrosEquipe(
   equipeId: string,
@@ -303,3 +223,118 @@ export async function listarMembrosEquipe(
 
   return membros;
 }
+
+export async function atualizarEquipe(
+  usuarioId: string,
+  equipeId: string,
+  data: { nome?: string; descricao?: string }
+): Promise<any> {
+  // Verificar se usuário é dono da equipe
+  const equipe = await prisma.equipe.findUnique({
+    where: { id: equipeId },
+  });
+
+  if (!equipe) {
+    const error = new Error("Equipe não encontrada");
+    (error as any).code = "NOT_FOUND";
+    throw error;
+  }
+
+  if (equipe.dono_id !== usuarioId) {
+    const error = new Error("Apenas o dono pode editar a equipe");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  return prisma.equipe.update({
+    where: { id: equipeId },
+    data: {
+      nome: data.nome || equipe.nome,
+      descricao: data.descricao !== undefined ? data.descricao : equipe.descricao,
+    },
+    include: {
+      usuarios: {
+        include: {
+          usuario: {
+            select: { id: true, nome: true, email: true, login: true, foto_url: true },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function deletarEquipe(
+  usuarioId: string,
+  equipeId: string
+): Promise<void> {
+  // Verificar se usuário é dono da equipe
+  const equipe = await prisma.equipe.findUnique({
+    where: { id: equipeId },
+  });
+
+  if (!equipe) {
+    const error = new Error("Equipe não encontrada");
+    (error as any).code = "NOT_FOUND";
+    throw error;
+  }
+
+  if (equipe.dono_id !== usuarioId) {
+    const error = new Error("Apenas o dono pode deletar a equipe");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Não permitir deletar equipes pessoais
+  if (equipe.eh_pessoal) {
+    const error = new Error("Não é possível deletar sua equipe pessoal");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Deletar em cascata (projetos, membros, etc)
+  await prisma.equipe.delete({
+    where: { id: equipeId },
+  });
+}
+
+export async function listarMembrosDisponiveis(
+  usuarioId: string
+): Promise<any> {
+  // Buscar todas as equipes do usuário
+  const usuarioEquipes = await prisma.usuarioEquipe.findMany({
+    where: { usuario_id: usuarioId },
+    include: {
+      equipe: {
+        include: {
+          usuarios: {
+            where: { status: "ATIVO" },
+            include: {
+              usuario: {
+                select: { id: true, nome: true, email: true, login: true, foto_url: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Extrair membros únicos de todas as equipes
+  const membrosMap = new Map();
+
+  for (const ue of usuarioEquipes) {
+    for (const membroEquipe of ue.equipe.usuarios) {
+      if (membroEquipe.usuario_id !== usuarioId) {
+        // Não incluir o próprio usuário
+        const chave = membroEquipe.usuario_id;
+        if (!membrosMap.has(chave)) {
+          membrosMap.set(chave, membroEquipe.usuario);
+        }
+      }
+    }
+  }
+
+  return Array.from(membrosMap.values());
+}
+
