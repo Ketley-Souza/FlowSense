@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
-import { autenticar, registrar, ativarConta } from "./auth.service";
+import { autenticar, registrar, ativarConta, obterDetalhesConvite } from "./auth.service";
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -141,6 +141,42 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
           statusCode: 500,
           error: "Internal Server Error",
           message: "erro, tente novamente",
+        });
+      }
+    }
+  );
+
+  // GET /auth/convite/:token - Obter detalhes do convite
+  fastify.get(
+    "/auth/convite/:token",
+    async (request: FastifyRequest<{ Params: { token: string } }>, reply: FastifyReply) => {
+      try {
+        const resultado = await obterDetalhesConvite(request.params.token);
+        return reply.code(200).send(resultado);
+      } catch (err) {
+        fastify.log.error({ err }, "Obter detalhes convite erro");
+        const error = err as NodeJS.ErrnoException;
+
+        if (error.code === "NOT_FOUND") {
+          return reply.code(404).send({
+            statusCode: 404,
+            error: "Not Found",
+            message: error.message,
+          });
+        }
+
+        if (error.code === "CONFLICT" || error.code === "BAD_REQUEST") {
+          return reply.code(400).send({
+            statusCode: 400,
+            error: "Bad Request",
+            message: error.message,
+          });
+        }
+
+        return reply.code(500).send({
+          statusCode: 500,
+          error: "Internal Server Error",
+          message: "Erro interno. Tente novamente.",
         });
       }
     }

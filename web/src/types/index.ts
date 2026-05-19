@@ -24,6 +24,7 @@ export interface Usuario {
 export type CargoType = "ADMIN" | "GERENTE" | "MEMBRO";
 export type CargoConvite = "GERENTE" | "MEMBRO";
 export type StatusMembro = "ATIVO" | "PENDENTE" | "DESATIVADO";
+export type StatusFiltro = "TODOS" | StatusMembro;
 
 export interface UsuarioEquipe {
   id?: string;

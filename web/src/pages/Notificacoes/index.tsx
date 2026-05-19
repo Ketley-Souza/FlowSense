@@ -123,7 +123,7 @@ export default function NotificacoesPage() {
   const deleteTarget = notifications.find((n) => n.id === deleteTargetId);
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 min-h-screen bg-slate-50">
+    <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8 min-h-screen bg-slate-50">
       <div className="max-w-[780px]">
 
         {/* ------------ título e ação principal -------------- */}

@@ -15,6 +15,7 @@ import { SkeletonStat } from "@/components/ui/SkeletonCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { DashboardData } from "@/types";
 import { useNavigate } from "react-router-dom";
+import { gerarCorProjetoIndexada } from "@/utils/colors";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ export default function DashboardPage() {
   // ─── Skeleton ───────────────────────────────────────────────────────────────
   if (carregando && !data) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8">
         <div className="mb-8 h-8 w-48 bg-slate-200 rounded-full animate-pulse" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[...Array(4)].map((_, i) => <SkeletonStat key={i} />)}
@@ -140,7 +141,7 @@ export default function DashboardPage() {
   // ─── Erro ───────────────────────────────────────────────────────────────────
   if (erro) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+      <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8">
         <EmptyState
           icon={<AlertTriangle size={24} />}
           title="Erro ao carregar dashboard"
@@ -169,7 +170,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 min-h-screen">
+    <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8 min-h-screen">
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
@@ -340,31 +341,34 @@ export default function DashboardPage() {
               <button onClick={() => navigate("/projetos")} className="text-sm font-semibold text-indigo-600 hover:underline">Criar projeto</button>
             } />
           ) : (
-            <div className="space-y-4">
-              {data.projetosRecentes.map((p) => (
-                <div key={p.id} className="flex items-center gap-4 group">
-                  <div
-                    className="w-2 h-10 rounded-full shrink-0"
-                    style={{ background: p.cor ?? "#6366f1" }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{p.nome}</p>
-                      <span className="text-xs text-slate-500 shrink-0 ml-2">{p.progresso}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${p.progresso}%`, background: p.cor ?? "#6366f1" }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-xs text-slate-400">{p.tarefasConcluidas}/{p.totalTarefas} tarefas</span>
-                      <AvatarStack membros={p.membros} />
+             <div className="space-y-4">
+              {data.projetosRecentes.map((p) => {
+                const corProjeto = gerarCorProjetoIndexada(p.id);
+                return (
+                  <div key={p.id} className="flex items-center gap-4 group">
+                    <div
+                      className="w-2 h-10 rounded-full shrink-0"
+                      style={{ background: corProjeto }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{p.nome}</p>
+                        <span className="text-xs text-slate-500 shrink-0 ml-2">{p.progresso}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${p.progresso}%`, background: corProjeto }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-xs text-slate-400">{p.tarefasConcluidas}/{p.totalTarefas} tarefas</span>
+                        <AvatarStack membros={p.membros} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -402,11 +406,11 @@ export default function DashboardPage() {
                 </div>
               ))}
               {(data?.tarefasProximas ?? []).slice(0, 3).map((t) => (
-                <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
-                  <Clock size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <Clock size={14} className="text-slate-500 mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{t.titulo}</p>
-                    <p className="text-xs text-amber-600 font-medium mt-0.5">
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">
                       Vence {formatDate(t.data_fim)} · {t.projeto.nome}
                     </p>
                   </div>

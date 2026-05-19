@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square } from "lucide-react";
+import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square, Calendar } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { Tarefa, Subtarefa, Tag } from "@/types";
 import { useTarefasStore } from "@/store/useTarefasStore";
@@ -227,14 +227,18 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Início</p>
-                    <p className="text-sm text-[#202A3D]">
-                      📅 {formatarDataBR(task.data_inicio ?? task.prazo)}
+                    <p className="text-sm text-[#202A3D] flex items-center gap-1.5">
+                      <Calendar size={14} className="text-[#9EB2CC]" />
+                      <span>{formatarDataBR(task.data_inicio ?? task.prazo)}</span>
                     </p>
                   </div>
                   {task.data_fim && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Fim</p>
-                      <p className="text-sm text-[#202A3D]">📅 {formatarDataBR(task.data_fim)}</p>
+                      <p className="text-sm text-[#202A3D] flex items-center gap-1.5">
+                        <Calendar size={14} className="text-[#9EB2CC]" />
+                        <span>{formatarDataBR(task.data_fim)}</span>
+                      </p>
                     </div>
                   )}
                 </div>

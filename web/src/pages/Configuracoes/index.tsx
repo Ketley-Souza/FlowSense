@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-3xl px-4 pt-6 md:pt-16 pb-6 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Configurações</h1>
           <p className="mt-1 text-sm text-slate-500">Gerencie suas preferências</p>

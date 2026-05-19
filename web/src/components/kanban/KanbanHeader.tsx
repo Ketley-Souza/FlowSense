@@ -40,7 +40,7 @@ export function KanbanHeader({
     <div className="border-b border-[#DFE7F2] bg-white">
 
       {/* Main section */}
-      <section className="flex min-h-[130px] flex-col gap-5 px-6 py-5 xl:flex-row xl:items-center">
+      <section className="flex min-h-[130px] flex-col gap-5 px-6 pt-6 md:pt-16 pb-5 xl:flex-row xl:items-center">
         {/* Avatar do projeto */}
         <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-[#E6EAFF]">
           <div className="relative h-14 w-14 overflow-hidden rounded-full bg-[#7578FF]">

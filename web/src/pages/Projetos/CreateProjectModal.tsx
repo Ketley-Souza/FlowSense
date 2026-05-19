@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BaseModal } from "@/components/Modal";
 import { useEquipesStore } from "@/store/useEquipesStore";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, AlertCircle } from "lucide-react";
 import { inputParaIso } from "@/utils/dates";
 import type { Usuario, Equipe, UsuarioEquipe } from "@/types";
 
@@ -229,8 +229,9 @@ export function CreateProjectModal({
           </label>
 
           {!usuarios || usuarios.length === 0 ? (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-              📋 Nenhum membro criado na equipe.
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
+              <AlertCircle size={16} className="text-yellow-700 shrink-0" />
+              <span>Nenhum membro criado na equipe.</span>
             </div>
           ) : (
             <>

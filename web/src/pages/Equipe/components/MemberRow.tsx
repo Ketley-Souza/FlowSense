@@ -1,11 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, UserMinus, Users } from "lucide-react";
 import type { UsuarioEquipe } from "@/types";
 import { RoleBadge } from "./RoleBadge";
 import { MemberStatus } from "./MemberStatus";
-import { getInitials, getAvatarColor, formatarData, formatarDataRelativa } from "./utils";
+import {
+  formatarData,
+  formatarDataRelativa,
+  getAvatarColor,
+  getInitials,
+} from "@/utils/equipe";
 
-// Explicit classes so Tailwind JIT can scan them correctly
 const DESKTOP_CLS =
   "hidden px-5 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_140px_120px_180px_44px] lg:items-center lg:gap-3";
 
@@ -18,43 +22,44 @@ export function MemberRow({ membro }: MemberRowProps) {
   const refMobile = useRef<HTMLDivElement>(null);
   const refDesktop = useRef<HTMLDivElement>(null);
 
-  const entradaLabel =
+  const atividadeLabel =
     membro.status === "PENDENTE"
       ? "Aguardando aceite"
       : formatarDataRelativa(membro.ativado_em);
 
-  const entradaTooltip =
+  const atividadeTooltip =
     membro.status !== "PENDENTE" && membro.ativado_em
       ? formatarData(membro.ativado_em)
       : undefined;
 
   useEffect(() => {
     if (!menuOpen) return;
-    function onOutside(e: MouseEvent) {
-      const inMobile = refMobile.current?.contains(e.target as Node);
-      const inDesktop = refDesktop.current?.contains(e.target as Node);
+
+    function onOutside(event: MouseEvent) {
+      const inMobile = refMobile.current?.contains(event.target as Node);
+      const inDesktop = refDesktop.current?.contains(event.target as Node);
       if (!inMobile && !inDesktop) setMenuOpen(false);
     }
+
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, [menuOpen]);
 
-  // Dropdown inlined — never define components inside render functions
   const dropdown = menuOpen ? (
-    <div className="absolute right-0 top-9 z-20 min-w-[168px] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg shadow-slate-200/60">
+    <div className="absolute right-0 top-9 z-20 min-w-[168px] overflow-hidden rounded-xl border border-[#DDE7F3] bg-white py-1 shadow-[0_18px_38px_rgba(32,42,61,0.14)]">
       <button
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-[#42516A] transition hover:bg-[#F8FBFF]"
         onClick={() => setMenuOpen(false)}
       >
-        <Users size={14} className="text-slate-400" />
+        <Users size={14} className="text-[#9EB2CC]" />
         Alterar cargo
       </button>
-      <div className="my-1 border-t border-slate-100" />
+      <div className="my-1 border-t border-[#EEF2F8]" />
       <button
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-[#FF4F58] transition hover:bg-[#FFF1F2]"
         onClick={() => setMenuOpen(false)}
       >
-        <UserMinus size={14} className="text-red-400" />
+        <UserMinus size={14} />
         Remover da equipe
       </button>
     </div>
@@ -62,7 +67,7 @@ export function MemberRow({ membro }: MemberRowProps) {
 
   const avatarNode = (
     <div
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white shadow-sm"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white"
       style={{ backgroundColor: getAvatarColor(membro.usuario_id) }}
       title={membro.usuario.nome}
     >
@@ -71,14 +76,13 @@ export function MemberRow({ membro }: MemberRowProps) {
   );
 
   return (
-    <div className="group relative border-t border-slate-100 transition-colors duration-100 hover:bg-slate-50">
-      {/* ── Mobile (< lg) ── */}
+    <div className="group relative border-b border-[#EEF2F8] transition-colors duration-100 hover:bg-[#F8FBFF]">
       <div className="flex items-center gap-3 px-4 py-3 lg:hidden">
         {avatarNode}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-slate-900">{membro.usuario.nome}</p>
-          <p className="truncate text-xs text-slate-400">{membro.usuario.email}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <p className="truncate text-sm font-bold text-[#202A3D]">{membro.usuario.nome}</p>
+          <p className="truncate text-xs font-medium text-[#7E8DA6]">{membro.usuario.email}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
             <RoleBadge cargo={membro.cargo} />
             <MemberStatus status={membro.status} />
           </div>
@@ -86,36 +90,41 @@ export function MemberRow({ membro }: MemberRowProps) {
         <div className="relative shrink-0" ref={refMobile}>
           <button
             id={`member-actions-mobile-${membro.usuario_id}`}
-            onClick={() => setMenuOpen((p) => !p)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#9EB2CC] transition hover:bg-[#EDF2F8] hover:text-[#42516A]"
             aria-label="Ações do membro"
           >
-            <MoreHorizontal size={15} />
+            <MoreHorizontal size={16} />
           </button>
           {dropdown}
         </div>
       </div>
 
-      {/* ── Desktop (lg+) ── */}
       <div className={DESKTOP_CLS}>
         <div className="flex min-w-0 items-center gap-3">
           {avatarNode}
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">{membro.usuario.nome}</p>
-            <p className="truncate text-xs text-slate-400">{membro.usuario.email}</p>
+            <p className="truncate text-sm font-bold text-[#202A3D]">{membro.usuario.nome}</p>
+            <p className="truncate text-xs font-medium text-[#7E8DA6]">{membro.usuario.email}</p>
           </div>
         </div>
-        <div><RoleBadge cargo={membro.cargo} /></div>
-        <div><MemberStatus status={membro.status} /></div>
-        <div className="text-xs text-slate-500" title={entradaTooltip}>{entradaLabel}</div>
+        <div>
+          <RoleBadge cargo={membro.cargo} />
+        </div>
+        <div>
+          <MemberStatus status={membro.status} />
+        </div>
+        <div className="text-xs font-medium text-[#7E8DA6]" title={atividadeTooltip}>
+          {atividadeLabel}
+        </div>
         <div className="relative flex justify-end" ref={refDesktop}>
           <button
             id={`member-actions-${membro.usuario_id}`}
-            onClick={() => setMenuOpen((p) => !p)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#9EB2CC] opacity-0 transition hover:bg-[#EDF2F8] hover:text-[#42516A] group-hover:opacity-100"
             aria-label="Ações do membro"
           >
-            <MoreHorizontal size={15} />
+            <MoreHorizontal size={16} />
           </button>
           {dropdown}
         </div>

@@ -3,12 +3,12 @@ import { BaseModal } from "@/components/Modal";
 import type { CargoConvite } from "@/types";
 
 const INPUT_CLS =
-  "w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/70";
-const LABEL_CLS = "block text-sm font-medium text-slate-700 mb-1.5";
+  "w-full rounded-xl border border-[#DDE7F3] px-3 py-2 text-sm text-[#202A3D] outline-none transition placeholder:text-[#9EB2CC] focus:border-[#5B35F5] focus:ring-2 focus:ring-[#5B35F5]/10";
+const LABEL_CLS = "mb-1.5 block text-sm font-bold text-[#202A3D]";
 const BTN_CANCEL =
-  "inline-flex h-9 items-center rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
+  "inline-flex h-9 items-center rounded-full border border-[#DDE7F3] px-4 text-sm font-bold text-[#42516A] transition hover:border-[#5B35F5] hover:text-[#5B35F5]";
 const BTN_PRIMARY =
-  "inline-flex h-9 items-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50";
+  "inline-flex h-9 items-center rounded-full bg-[#5B35F5] px-4 text-sm font-bold text-white transition hover:bg-[#4D2DE0] disabled:opacity-50";
 
 interface ModalConvidarMembroProps {
   isOpen: boolean;
@@ -31,7 +31,13 @@ export function ModalConvidarMembro({
 
   // Limpa o formulário ao fechar
   useEffect(() => {
-    if (!isOpen) setForm({ nome: "", email: "", cargo: "MEMBRO" });
+    if (isOpen) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setForm({ nome: "", email: "", cargo: "MEMBRO" });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen]);
 
   const canSubmit = form.nome.trim().length > 0 && form.email.trim().length > 0;

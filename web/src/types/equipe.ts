@@ -5,5 +5,6 @@ export type {
   Equipe,
   UsuarioEquipe,
   CargoType,
+  StatusFiltro,
   StatusMembro,
 } from "@/types";

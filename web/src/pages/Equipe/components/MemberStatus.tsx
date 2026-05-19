@@ -1,36 +1,24 @@
 interface StatusConfig {
   label: string;
   dotClass: string;
-  textClass: string;
-  surfaceClass: string;
-  ping: boolean;
-  pulse: boolean;
+  className: string;
 }
 
 const CONFIG: Record<string, StatusConfig> = {
   ATIVO: {
     label: "Ativo",
-    dotClass: "bg-emerald-500",
-    textClass: "text-emerald-700",
-    surfaceClass: "bg-emerald-50 ring-emerald-200/70",
-    ping: true,
-    pulse: false,
+    dotClass: "bg-indigo-500",
+    className: "bg-indigo-50 text-indigo-700 ring-indigo-200/70",
   },
   PENDENTE: {
     label: "Pendente",
-    dotClass: "bg-amber-400",
-    textClass: "text-amber-700",
-    surfaceClass: "bg-amber-50 ring-amber-200/70",
-    ping: false,
-    pulse: true,
+    dotClass: "bg-slate-500",
+    className: "bg-slate-50 text-slate-700 ring-slate-200/70",
   },
   DESATIVADO: {
     label: "Inativo",
-    dotClass: "bg-slate-300",
-    textClass: "text-slate-500",
-    surfaceClass: "bg-slate-100 ring-slate-200/60",
-    ping: false,
-    pulse: false,
+    dotClass: "bg-[#9EB2CC]",
+    className: "bg-[#EDF2F8] text-[#4C5B73] ring-[#DDE7F3]",
   },
 };
 
@@ -43,20 +31,9 @@ export function MemberStatus({ status }: MemberStatusProps) {
 
   return (
     <span
-      className={`inline-flex h-[22px] items-center gap-1.5 rounded px-1.5 text-[11px] font-semibold ring-1 ring-inset ${config.surfaceClass} ${config.textClass}`}
+      className={`inline-flex h-[24px] items-center gap-1.5 rounded-full px-2 text-[11px] font-bold ring-1 ring-inset ${config.className}`}
     >
-      <span className="relative flex h-1.5 w-1.5 shrink-0">
-        {config.ping && (
-          <span
-            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${config.dotClass}`}
-          />
-        )}
-        <span
-          className={`relative inline-flex h-1.5 w-1.5 rounded-full ${config.dotClass} ${
-            config.pulse ? "animate-pulse" : ""
-          }`}
-        />
-      </span>
+      <span className={`h-1.5 w-1.5 rounded-full ${config.dotClass}`} />
       {config.label}
     </span>
   );

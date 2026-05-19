@@ -97,14 +97,14 @@ export default function Projects() {
 
   if (carregando && projetos.length === 0) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-slate-50 min-h-screen">
+      <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8 bg-slate-50 min-h-screen">
         <p className="text-gray-500">Carregando projetos...</p>
       </div>
     );
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-slate-50 min-h-screen">
+    <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-6 lg:pb-8 bg-slate-50 min-h-screen">
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-8">
         <div>
@@ -148,7 +148,7 @@ export default function Projects() {
           {projetos.map((projeto: Projeto, index: number) => {
             const estaAtrasado = projetoAtrasado(projeto.data_fim);
             const falta2Dias = faltaDoisDias(projeto.data_fim);
-            const cor = gerarCorProjetoIndexada(projeto.id, index);
+            const cor = gerarCorProjetoIndexada(projeto.id);
 
             const totalTarefas = projeto._count?.tarefas ?? 0;
             const tarefasConcluidas = (projeto.tarefas ?? []).filter(
