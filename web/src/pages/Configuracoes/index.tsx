@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Bell, CircleUserRound, Shield } from "lucide-react";
+import { useToastGlobal } from "@/contexts/ToastContext";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -41,34 +42,23 @@ function SectionCard({
 }
 
 export default function SettingsPage() {
+  const toast = useToastGlobal();
   const [emailNotifs, setEmailNotifs] = useState(false);
   const [pushNotifs, setPushNotifs] = useState(false);
   const [taskUpdates, setTaskUpdates] = useState(false);
   const [comments, setComments] = useState(false);
 
   const handleSave = () => {
-    alert("Configurações salvas.");
+    toast.sucesso("Configurações salvas com sucesso!");
   };
 
   const handleUploadPhoto = () => {
-    alert("Botão de alterar foto funcionando.");
+    toast.info("Funcionalidade de upload em desenvolvimento.");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <header className="flex h-14 items-center justify-end border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4 text-slate-400">
-          <button type="button" className="transition hover:text-slate-600" aria-label="Notificações">
-            <Bell size={18} />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-slate-200" />
-            <span className="text-sm font-medium text-slate-600">Usuário</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-10">
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Configurações</h1>
           <p className="mt-1 text-sm text-slate-500">Gerencie suas preferências</p>

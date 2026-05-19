@@ -8,7 +8,13 @@ type Props = {
   badge?: number;
 };
 
-export function SidebarItem({ icon, label, isOpen, badge, to }: Props) {
+export function SidebarItem({
+  icon,
+  label,
+  isOpen,
+  badge,
+  to,
+}: Props) {
   const location = useLocation();
 
   const isActive = location.pathname === to;
@@ -16,46 +22,61 @@ export function SidebarItem({ icon, label, isOpen, badge, to }: Props) {
   return (
     <Link
       to={to}
+      title={!isOpen ? label : undefined}
       className={`
-    flex items-center h-12 rounded-xl
-    transition-all duration-300 ease-in-out
-    
-    px-2
-    ${isOpen ? "pl-3" : "pl-[18px]"}
-    
-    ${
-      isActive
-        ? "bg-indigo-50 text-indigo-400"
-        : "text-gray-600 hover:bg-indigo-50/60"
-    }
-  `}
-    >
-      {/* ÍCONE */}
-      <div className="flex items-center justify-center min-w-6">{icon}</div>
+        flex h-12 items-center rounded-xl
+        transition-all duration-300
 
-      {/* TEXTO */}
-      <div
-        className={`
-      overflow-hidden transition-all duration-300
-      ${isOpen ? "w-30 ml-3 opacity-100" : "w-0 ml-0 opacity-0"}
-    `}
-      >
-        <span className="text-sm whitespace-nowrap">{label}</span>
+        ${isOpen
+          ? "px-3"
+          : "justify-center"
+        }
+
+        ${isActive
+          ? "bg-indigo-50 text-indigo-500"
+          : "text-slate-500 hover:bg-indigo-50/60 hover:text-slate-700"
+        }
+      `}
+    >
+      {/* ICON */}
+      <div className="flex w-5 shrink-0 items-center justify-center">
+        {icon}
       </div>
+
+      {/* LABEL */}
+      {isOpen && (
+        <span
+          className={`
+    overflow-hidden whitespace-nowrap text-sm font-medium
+    transition-all duration-300 ease-out
+
+    ${isOpen
+              ? "ml-3 max-w-[140px] opacity-100"
+              : "ml-0 max-w-0 opacity-0"
+            }
+  `}
+        >
+          {label}
+        </span>
+      )}
 
       {/* BADGE */}
-      <div
-        className={`
-      overflow-hidden transition-all duration-300
-      ${isOpen && badge ? "w-auto ml-auto opacity-100" : "w-0 opacity-0"}
-    `}
-      >
-        {badge && (
-          <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
-      </div>
+      {isOpen && badge && (
+        <span
+          className={`
+    overflow-hidden rounded-full bg-red-500
+    text-xs font-semibold text-white
+    transition-all duration-300 ease-out
+
+    ${isOpen && badge
+              ? "ml-auto px-2 py-0.5 opacity-100"
+              : "ml-0 max-w-0 px-0 py-0 opacity-0"
+            }
+  `}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }

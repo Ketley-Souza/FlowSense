@@ -21,13 +21,12 @@ export function gerarCorProjeto(id: string): string {
  * Paleta de cores predefinidas para melhor contraste
  */
 export const paletaCores = [
-  "#4f35f5", // Indigo
-  "#6c2bd9", // Purple
-  "#d62828", // Red
-  "#f77f00", // Orange
+  "#4F39F6", // Indigo
+  "#FE9A00", // Orange
   "#2a9d8f", // Teal
-  "#e63946", // Rose
+  "#d62828", // Red
   "#457b9d", // Steel Blue
+  "#e63946", // Rose
   "#a8dadc", // Powder Blue
   "#1d3557", // Navy
   "#06aed5", // Sky Blue

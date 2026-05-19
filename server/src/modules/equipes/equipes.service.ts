@@ -298,6 +298,45 @@ export async function deletarEquipe(
   });
 }
 
+export async function removerMembro(
+  solicitanteId: string,
+  equipeId: string,
+  membroId: string
+): Promise<void> {
+  // Verificar se solicitante é ADMIN ou GERENTE
+  const solicitante = await prisma.usuarioEquipe.findUnique({
+    where: { usuario_id_equipe_id: { usuario_id: solicitanteId, equipe_id: equipeId } },
+  });
+
+  if (!solicitante || !["ADMIN", "GERENTE"].includes(solicitante.cargo)) {
+    const error = new Error("Você não tem permissão para remover membros");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Não pode remover a si mesmo
+  if (solicitanteId === membroId) {
+    const error = new Error("Você não pode se remover da equipe");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Verificar se membro existe na equipe
+  const membro = await prisma.usuarioEquipe.findUnique({
+    where: { usuario_id_equipe_id: { usuario_id: membroId, equipe_id: equipeId } },
+  });
+
+  if (!membro) {
+    const error = new Error("Membro não encontrado nessa equipe");
+    (error as any).code = "NOT_FOUND";
+    throw error;
+  }
+
+  await prisma.usuarioEquipe.delete({
+    where: { usuario_id_equipe_id: { usuario_id: membroId, equipe_id: equipeId } },
+  });
+}
+
 export async function listarMembrosDisponiveis(
   usuarioId: string
 ): Promise<any> {

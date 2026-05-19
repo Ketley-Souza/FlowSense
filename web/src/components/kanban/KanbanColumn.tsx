@@ -15,9 +15,10 @@ type KanbanColumnProps = {
 };
 
 /**
- * Coluna do Kanban — largura fixa para scroll horizontal
- * Exibe cards de tarefas, botão de adicionar e botão de deletar a coluna
- * O botão de deletar fica no rodapé para não confundir com o de adicionar tarefa
+ * Coluna do Kanban
+ * - Largura fluida: min(400px, 80vw) — responsiva em mobile sem quebrar o layout
+ * - Lista de tarefas com flex-1 para preencher a altura disponível
+ * - Botão deletar ancorado ao rodapé via mt-auto (sempre embaixo, longe das tarefas)
  */
 export function KanbanColumn({
   title,
@@ -30,7 +31,10 @@ export function KanbanColumn({
   onDeleteColumn,
 }: KanbanColumnProps) {
   return (
-    <section className="w-[300px] shrink-0 rounded-[28px] border border-[#DDE7F3] bg-[#F8FBFF] p-4 flex flex-col">
+    <section
+      className="shrink-0 rounded-[28px] border border-[#DDE7F3] bg-[#F8FBFF] p-4 flex flex-col"
+      style={{ width: "min(400px, 80vw)" }}
+    >
       {/* Header da coluna */}
       <header className="mb-4 flex h-10 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -44,7 +48,7 @@ export function KanbanColumn({
           </h2>
         </div>
 
-        {/* Botão adicionar tarefa — único no header */}
+        {/* Botão adicionar tarefa */}
         <button
           type="button"
           onClick={onAddTask}
@@ -56,8 +60,8 @@ export function KanbanColumn({
         </button>
       </header>
 
-      {/* Lista de tarefas */}
-      <div className="flex flex-col gap-3 flex-1">
+      {/* Lista de tarefas — flex-1 faz preencher o espaço restante */}
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
         {tarefas.map((tarefa) => (
           <TaskCard
             key={tarefa.id}
@@ -79,9 +83,9 @@ export function KanbanColumn({
         )}
       </div>
 
-      {/* Rodapé da coluna — botão deletar discreto (só em colunas reais) */}
+      {/* Rodapé — mt-auto ancora o botão deletar ao fundo, longe das tarefas */}
       {onDeleteColumn && (
-        <footer className="mt-3 pt-3 border-t border-[#DDE7F3]">
+        <footer className="mt-auto pt-3 border-t border-[#DDE7F3]">
           <button
             type="button"
             onClick={onDeleteColumn}

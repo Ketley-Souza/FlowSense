@@ -5,6 +5,7 @@ export type {
   Projeto,
   CriarProjetoPayload,
   AtualizarProjetoPayload,
+  ColunaKanban,
   Tarefa,
   Subtarefa,
   Tag,

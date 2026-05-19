@@ -38,15 +38,6 @@ export function KanbanHeader({
 
   return (
     <div className="border-b border-[#DFE7F2] bg-white">
-      {/* Top bar */}
-      <header className="flex h-14 items-center justify-end border-b border-[#DFE7F2] px-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-[#7480FF] text-xs font-bold text-white">
-            {inicialUsuario}
-          </div>
-          <span className="text-sm font-medium text-[#3C485C]">{nomeUsuario}</span>
-        </div>
-      </header>
 
       {/* Main section */}
       <section className="flex min-h-[130px] flex-col gap-5 px-6 py-5 xl:flex-row xl:items-center">

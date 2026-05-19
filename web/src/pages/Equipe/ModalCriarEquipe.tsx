@@ -1,5 +1,13 @@
-import React from "react";
+import { useState, useEffect } from "react";
 import { BaseModal } from "@/components/Modal";
+
+const INPUT_CLS =
+  "w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/70";
+const LABEL_CLS = "block text-sm font-medium text-slate-700 mb-1.5";
+const BTN_CANCEL =
+  "inline-flex h-9 items-center rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
+const BTN_PRIMARY =
+  "inline-flex h-9 items-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50";
 
 interface ModalCriarEquipeProps {
   isOpen: boolean;
@@ -14,47 +22,49 @@ export function ModalCriarEquipe({
   onSubmit,
   enviando = false,
 }: ModalCriarEquipeProps) {
-  const [nome, setNome] = React.useState("");
+  const [nome, setNome] = useState("");
 
-  const handleSubmit = () => {
-    if (!nome.trim()) {
-      return;
-    }
-    onSubmit(nome);
-    setNome("");
-  };
+  useEffect(() => {
+    if (!isOpen) setNome("");
+  }, [isOpen]);
+
+  function handleSubmit() {
+    if (!nome.trim()) return;
+    onSubmit(nome.trim());
+  }
 
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Criar Nova Equipe"
+      title="Nova equipe"
       size="sm"
       footer={
         <>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50"
-          >
+          <button onClick={onClose} className={BTN_CANCEL}>
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
             disabled={enviando || !nome.trim()}
-            className="px-4 py-2 bg-[#4f35f5] text-white rounded-lg text-sm disabled:opacity-50"
+            className={BTN_PRIMARY}
           >
-            {enviando ? "Criando..." : "Criar"}
+            {enviando ? "Criando…" : "Criar equipe"}
           </button>
         </>
       }
     >
       <div>
-        <label className="text-sm block mb-2 font-medium">Nome da Equipe</label>
+        <label className={LABEL_CLS}>Nome da equipe</label>
         <input
-          className="w-full border border-slate-300 rounded-lg px-3 py-2"
-          placeholder="Digite o nome da equipe"
+          id="criar-equipe-nome"
+          className={INPUT_CLS}
+          placeholder="ex. Design, Engenharia…"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          autoFocus
+          autoComplete="off"
         />
       </div>
     </BaseModal>

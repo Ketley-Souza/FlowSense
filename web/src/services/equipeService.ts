@@ -47,4 +47,8 @@ export const equipeService = {
     const { data } = await api.get<Usuario[]>("/membros-disponiveis");
     return data;
   },
+
+  removerMembro: async (equipeId: string, membroId: string): Promise<void> => {
+    await api.delete(`/equipes/${equipeId}/membros/${membroId}`);
+  },
 };

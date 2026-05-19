@@ -1,16 +1,14 @@
 import { Sidebar } from "../Sidebar";
 import { Outlet } from "react-router-dom";
-import { useSidebar } from "@/contexts/SidebarContext";
 
 export default function Layout() {
-  const { isOpen, isPinned } = useSidebar();
-  const sidebarWidth = isOpen || isPinned ? "ml-64" : "ml-20";
-
+  // A sidebar recolhida tem 80px (w-[80px] = w-20).
+  // Quando expandida por hover ela flutua por cima (overlay), não empurra o conteúdo.
+  // Por isso a margem é sempre fixa em md+: 80px.
   return (
-    <div className="flex h-screen w-full bg-gray-50">
+    <div className="flex h-screen w-full bg-slate-50">
       <Sidebar />
-
-      <main className={`flex-1 overflow-y-auto bg-gray-50 p-6 transition-all duration-300 ${sidebarWidth}`}>
+      <main className="flex flex-1 flex-col overflow-y-auto bg-slate-50 pt-14 md:pt-0 md:ml-20">
         <Outlet />
       </main>
     </div>

@@ -1,202 +1,253 @@
 import { useNavigate } from "react-router-dom";
+
 import {
-  LayoutDashboard,
-  FolderKanban,
-  Columns3,
   Bell,
-  Users,
-  Settings,
-  Menu,
-  X,
+  Columns3,
+  FolderKanban,
+  LayoutDashboard,
   LogOut,
+  Menu,
+  Settings,
+  Users,
+  X,
 } from "lucide-react";
-import { SidebarItem } from "../Sidebar/sidebarItem";
-import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
+
+import { SidebarItem } from "@/components/Sidebar/sidebarItem";
+
 import { useSidebar } from "@/contexts/SidebarContext";
+import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
+
 import logo from "@/assets/Logo.svg";
+
+interface NavItem {
+  icon: React.ReactNode;
+  label: string;
+  to: string;
+  badge?: number;
+}
+
+const navItems: NavItem[] = [
+  {
+    icon: <LayoutDashboard size={20} />,
+    label: "Dashboard",
+    to: "/dashboard",
+  },
+  {
+    icon: <FolderKanban size={20} />,
+    label: "Projetos",
+    to: "/projetos",
+  },
+  {
+    icon: <Columns3 size={20} />,
+    label: "Kanban",
+    to: "/kamban",
+  },
+  {
+    icon: <Bell size={20} />,
+    label: "Notificações",
+    to: "/notificacoes",
+    badge: 2,
+  },
+  {
+    icon: <Users size={20} />,
+    label: "Equipe",
+    to: "/equipe",
+  },
+];
 
 export function Sidebar() {
   const navigate = useNavigate();
-  const usuarioLogado = getUsuarioLogado();
-  const { isOpen, setIsOpen, isPinned, setIsPinned, isMobileOpen, setIsMobileOpen } = useSidebar();
 
-  const handleMouseEnter = () => {
-    if (!isPinned) setIsOpen(true);
-  };
+  const usuario = getUsuarioLogado();
 
-  const handleMouseLeave = () => {
-    if (!isPinned) setIsOpen(false);
-  };
+  const {
+    isOpen,
+    setIsOpen,
+    isMobileOpen,
+    setIsMobileOpen,
+  } = useSidebar();
+
+  const showLabels = isMobileOpen || isOpen;
+
+  const sidebarWidth = showLabels ? "w-64" : "w-[80px]";
 
   const handleLogout = () => {
     logoutAuth();
     navigate("/login");
   };
 
-  const getInitials = (nome: string) => {
-    return nome
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .slice(0, 2)
       .map((n) => n[0])
       .join("")
       .toUpperCase();
-  };
 
   return (
     <>
       {/* MOBILE BUTTON */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded shadow"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
+        aria-label="Abrir menu"
+        className="
+          fixed left-4 top-4 z-50 rounded-xl border
+          border-slate-200 bg-white p-2 text-slate-700
+          shadow-sm transition hover:bg-slate-50 md:hidden
+        "
       >
-        {isMobileOpen ? <X /> : <Menu />}
+        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* OVERLAY */}
+      {/* MOBILE OVERLAY */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
           onClick={() => setIsMobileOpen(false)}
+          className="
+            fixed inset-0 z-40 bg-black/50
+            backdrop-blur-sm md:hidden
+          "
         />
       )}
 
       {/* SIDEBAR */}
       <aside
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
         className={`
-          fixed h-screen bg-neutral-50 border-r border-slate-200
-          transition-all duration-300 ease-in-out
-          overflow-hidden left-0 top-0
-          ${isOpen ? "w-64" : "w-20"}
-          ${isMobileOpen ? "z-50" : "-left-full md:left-0 md:z-30"}
+          fixed left-0 top-0 z-50
+          flex h-screen flex-col overflow-hidden
+
+          border-r border-slate-100
+          bg-white
+
+          transition-all duration-300 ease-out
+
+          ${sidebarWidth}
+
+          ${
+            isMobileOpen
+              ? "translate-x-0 shadow-2xl"
+              : "-translate-x-full md:translate-x-0"
+          }
         `}
       >
-        <div className="flex flex-col justify-between h-full">
-          
-          {/* TOP */}
-          <div>
-            <div className="pl-5 pt-6 mb-6">
-              <div className="flex items-center">
-                <img src={logo} className="w-9 h-9" />
+        {/* HEADER */}
+        <div
+          className={`
+            flex h-20 items-center
+            transition-all duration-300
 
-                {/* LOGO TEXT */}
-                <div
-                  className={`
-                    overflow-hidden transition-all duration-300 ease-in-out
-                    ${isOpen ? "w-30 ml-2 opacity-100" : "w-0 ml-0 opacity-0"}
-                  `}
-                >
-                  <span className="font-bold text-lg text-gray-600 whitespace-nowrap">
-                    FlowSense
-                  </span>
-                </div>
-              </div>
-            </div>
+            ${showLabels ? "px-5" : "justify-center"}
+          `}
+        >
+          <img
+            src={logo}
+            alt="FlowSense"
+            className="h-8 w-8 shrink-0"
+          />
 
-            {/* NAV */}
-            <nav className="flex flex-col px-3">
-              <div className="mb-2">
-                <SidebarItem
-                  icon={<LayoutDashboard size={20} />}
-                  label="Dashboard"
-                  isOpen={isOpen}
-                  to="/dashboard"
-                />
-              </div>
+          <span
+            className={`
+              overflow-hidden whitespace-nowrap
+              text-base font-bold text-slate-800
 
-              <div className="mb-2">
-                <SidebarItem
-                  icon={<FolderKanban size={20} />}
-                  label="Projetos"
-                  isOpen={isOpen}
-                  to="/projetos"
-                />
-              </div>
+              transition-all duration-300 ease-out
 
-              <div className="mb-2">
-                <SidebarItem
-                  icon={<Columns3 size={20} />}
-                  label="Kamban"
-                  isOpen={isOpen}
-                  to="/kamban"
-                />
-              </div>
-
-              <div className="mb-2">
-                <SidebarItem
-                  icon={<Bell size={20} />}
-                  label="Notificações"
-                  isOpen={isOpen}
-                  badge={2}
-                  to="/notificacoes"
-                />
-              </div>
-
-              <div className="mb-2">
-                <SidebarItem
-                  icon={<Users size={20} />}
-                  label="Equipe"
-                  isOpen={isOpen}
-                  to="/equipe"
-                />
-              </div>
-            </nav>
-          </div>
-
-          {/* PIN */}
-          <button
-            onClick={() => setIsPinned(!isPinned)}
-            className="text-xs text-gray-400 hover:text-gray-700 px-3 mt-2"
+              ${
+                showLabels
+                  ? "ml-3 max-w-[140px] opacity-100"
+                  : "ml-0 max-w-0 opacity-0"
+              }
+            `}
           >
-            {isPinned ? "Desafixar" : "Fixar"}
-          </button>
+            FlowSense
+          </span>
+        </div>
 
-          {/* FOOTER */}
-          <div>
-            <div className="border-t border-slate-200 my-3" />
+        {/* NAVIGATION */}
+        <nav className="flex-1 space-y-1 px-3 py-4">
+          {navItems.map((item) => (
+            <SidebarItem
+              key={item.to}
+              icon={item.icon}
+              label={item.label}
+              to={item.to}
+              badge={item.badge}
+              isOpen={showLabels}
+            />
+          ))}
+        </nav>
 
-            <div className="px-3">
-              <SidebarItem
-                icon={<Settings size={20} />}
-                label="Configurações"
-                isOpen={isOpen}
-                to="/configuracoes"
-              />
+        {/* FOOTER */}
+        <div className="border-t border-slate-100 p-3">
+          <SidebarItem
+            icon={<Settings size={20} />}
+            label="Configurações"
+            to="/configuracoes"
+            isOpen={showLabels}
+          />
 
-              {/* USER */}
-              <div className="flex items-center justify-between px-2 py-3 mt-2 group">
-                <div className="flex items-center flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-indigo-400 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
-                    {usuarioLogado ? getInitials(usuarioLogado.nome) : "U"}
-                  </div>
+          {/* USER */}
+          <div
+            className={`
+              mt-2 flex items-center rounded-xl py-2.5
+              transition-colors hover:bg-slate-50
 
-                  <div
-                    className={`
-                      overflow-hidden transition-all duration-300 ease-in-out
-                      ${isOpen ? "w-35 ml-2 opacity-100" : "w-0 ml-0 opacity-0"}
-                    `}
-                  >
-                    <span className="text-sm text-gray-700 font-medium block whitespace-nowrap">
-                      {usuarioLogado?.nome || "Usuário"}
-                    </span>
-                    <span className="text-xs text-gray-500 block whitespace-nowrap truncate">
-                      {usuarioLogado?.email || "email@example.com"}
-                    </span>
-                  </div>
-                </div>
-
-                {isOpen && (
-                  <button
-                    onClick={handleLogout}
-                    className="shrink-0 ml-2 p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
-                    title="Logout"
-                  >
-                    <LogOut size={16} />
-                  </button>
-                )}
-              </div>
+              ${showLabels ? "px-3" : "justify-center"}
+            `}
+          >
+            {/* AVATAR */}
+            <div
+              className="
+                flex h-8 w-8 shrink-0 items-center justify-center
+                rounded-full bg-indigo-500
+                text-xs font-semibold text-white
+              "
+            >
+              {usuario ? getInitials(usuario.nome) : "U"}
             </div>
+
+            {/* USER INFO */}
+            <div
+              className={`
+                overflow-hidden transition-all duration-300 ease-out
+
+                ${
+                  showLabels
+                    ? "ml-3 max-w-[160px] opacity-100"
+                    : "ml-0 max-w-0 opacity-0"
+                }
+              `}
+            >
+              <p className="truncate whitespace-nowrap text-sm font-semibold text-slate-800">
+                {usuario?.nome || "Usuário"}
+              </p>
+
+              <p className="truncate whitespace-nowrap text-xs text-slate-400">
+                {usuario?.email || ""}
+              </p>
+            </div>
+
+            {/* LOGOUT */}
+            <button
+              onClick={handleLogout}
+              title="Sair"
+              className={`
+                overflow-hidden rounded-lg p-1
+                text-slate-400 transition-all duration-300
+
+                hover:bg-red-50 hover:text-red-500
+
+                ${
+                  showLabels
+                    ? "ml-auto opacity-100"
+                    : "ml-0 max-w-0 opacity-0"
+                }
+              `}
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>

@@ -11,6 +11,7 @@ import {
   atualizarEquipe,
   deletarEquipe,
   listarMembrosDisponiveis,
+  removerMembro,
 } from "./equipes.service";
 
 function handleServiceError(
@@ -156,6 +157,22 @@ export async function equipesRoutes(
     ) => {
       try {
         await deletarEquipe(request.user.sub, request.params.id);
+        return reply.code(204).send();
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // DELETE /equipes/:id/membros/:membroId - Remover membro da equipe
+  fastify.delete(
+    "/equipes/:id/membros/:membroId",
+    async (
+      request: FastifyRequest<{ Params: { id: string; membroId: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        await removerMembro(request.user.sub, request.params.id, request.params.membroId);
         return reply.code(204).send();
       } catch (err) {
         return handleServiceError(err, reply, fastify);

@@ -266,6 +266,10 @@ export interface CriarAnexoPayload {
 // ============================================
 // API RESPONSES
 // ============================================
+
+// ============================================
+// API RESPONSES
+// ============================================
 export interface LoginResponse {
   token: string;
   usuario: Usuario;
@@ -274,4 +278,63 @@ export interface LoginResponse {
 export interface RegisterResponse {
   message: string;
   usuario: Usuario;
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+export interface DashboardResumo {
+  totalProjetos: number;
+  totalTarefas: number;
+  tarefasConcluidas: number;
+  tarefasEmProgresso: number;
+  tarefasAtrasadas: number;
+  tarefasProximas: number;
+  totalMembros: number;
+  progressoGeral: number;
+  taxaConclusao: number;
+}
+
+export interface DashboardProjeto {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  cor: string;
+  data_fim?: Date | null;
+  totalTarefas: number;
+  tarefasConcluidas: number;
+  progresso: number;
+  membros: Array<{ id: string; nome: string; foto_url?: string | null }>;
+}
+
+export interface DashboardTarefa {
+  id: string;
+  titulo: string;
+  data_fim?: Date | null;
+  prioridade: "BAIXA" | "MEDIA" | "ALTA";
+  progresso: number;
+  projeto: { id: string; nome: string };
+  responsavel: { id: string; nome: string; foto_url?: string | null };
+}
+
+export interface DashboardAtividade {
+  id: string;
+  campo_alterado: string;
+  valor_novo?: string | null;
+  createdAt: string;
+  usuario: { id: string; nome: string; foto_url?: string | null };
+  tarefa: { id: string; titulo: string; id_projeto: string };
+}
+
+export interface DashboardData {
+  resumo: DashboardResumo;
+  projetosRecentes: DashboardProjeto[];
+  tarefasAtrasadas: DashboardTarefa[];
+  tarefasProximas: DashboardTarefa[];
+  produtividade: {
+    semana: Array<{ data: string; concluidas: number }>;
+    taxaConclusao: number;
+  };
+  distribuicaoPrioridade: { BAIXA: number; MEDIA: number; ALTA: number };
+  atividadesRecentes: DashboardAtividade[];
 }

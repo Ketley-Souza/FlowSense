@@ -56,7 +56,7 @@ export function BaseModal({
         <div className="mb-6">{children}</div>
 
         {footer && (
-          <div className="flex justify-end gap-3 border-t pt-4">
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
             {footer}
           </div>
         )}

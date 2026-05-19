@@ -7,6 +7,7 @@ import { tarefasRoutes } from "./modules/tarefas/tarefas.routes";
 import { projetosRoutes } from "./modules/projetos/projetos.routes";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes";
 import { equipesRoutes } from "./modules/equipes/equipes.routes";
+import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 
 const fastify = Fastify({
   logger: {
@@ -38,6 +39,7 @@ async function bootstrap() {
   await fastify.register(projetosRoutes);
   await fastify.register(usuariosRoutes);
   await fastify.register(equipesRoutes);
+  await fastify.register(dashboardRoutes);
 
   fastify.get("/health", async () => ({
     status: "ok",

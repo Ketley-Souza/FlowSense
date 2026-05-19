@@ -32,7 +32,13 @@ export const useProjetosStore = create<ProjetosStore>((set: any) => ({
     set({ carregando: true, erro: null });
     try {
       const projetos = await projetoService.listar();
-      set({ projetos });
+
+      // Auto-selecionar projeto: último salvo → primeiro disponível
+      const savedId = localStorage.getItem("flowsense_projeto_ativo");
+      const saved = projetos.find((p: any) => p.id === savedId);
+      const projetoAtual = saved ?? projetos[0] ?? null;
+
+      set({ projetos, projetoAtual });
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : "Erro ao listar projetos";
       set({ erro: mensagem });
@@ -41,6 +47,7 @@ export const useProjetosStore = create<ProjetosStore>((set: any) => ({
       set({ carregando: false });
     }
   },
+
 
   obter: async (projetoId: string) => {
     set({ carregando: true, erro: null });
@@ -146,6 +153,11 @@ export const useProjetosStore = create<ProjetosStore>((set: any) => ({
   },
 
   definirProjetoAtivo: (projeto: Projeto | null) => {
+    if (projeto) {
+      localStorage.setItem("flowsense_projeto_ativo", projeto.id);
+    } else {
+      localStorage.removeItem("flowsense_projeto_ativo");
+    }
     set({ projetoAtual: projeto });
   },
 

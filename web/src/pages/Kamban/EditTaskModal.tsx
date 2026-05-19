@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { Tarefa, Subtarefa, Tag } from "@/types";
 import { useTarefasStore } from "@/store/useTarefasStore";
 import { useToast } from "@/components/Toast";
+import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { calcularProgressoTarefa, formatarDataBR } from "@/utils/kanban";
 
 type Aba = "detalhes" | "comentarios" | "anexos" | "historico";
@@ -35,6 +36,7 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
   const [showAnexoForm, setShowAnexoForm] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [deletando, setDeletando] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const { atualizar, adicionarComentario, adicionarAnexo } = useTarefasStore();
   const toast = useToast();
@@ -115,7 +117,11 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
   }
 
   async function handleDelete() {
-    if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+    setConfirmDeleteOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    setConfirmDeleteOpen(false);
     setDeletando(true);
     try {
       await onDelete();
@@ -135,7 +141,7 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
     return `Há ${d}d`;
   }
 
-  return createPortal(
+  const modal = createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
       onMouseDown={onClose}
@@ -460,7 +466,7 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
           <button
             type="button"
             onClick={() => onEdit(task)}
-            className="flex h-10 items-center gap-2 rounded-xl border border-[#DDE7F3] px-4 text-sm font-semibold text-[#40506A] transition hover:bg-slate-50"
+            className="inline-flex h-[37px] items-center gap-2 rounded-full border border-[#DDE7F3] px-4 text-sm font-semibold text-[#40506A] transition hover:bg-slate-50"
           >
             <Pencil size={15} />
             Editar
@@ -469,7 +475,7 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
             type="button"
             onClick={handleDelete}
             disabled={deletando}
-            className="flex h-10 items-center gap-2 rounded-xl bg-[#FF4F58] px-4 text-sm font-bold text-white shadow-[0_4px_12px_rgba(255,79,88,0.3)] transition hover:bg-[#e03040] disabled:opacity-50"
+            className="inline-flex h-[37px] items-center gap-2 rounded-full bg-[#FF4F58] px-4 text-sm font-bold text-white shadow-[0_4px_12px_rgba(255,79,88,0.3)] transition hover:bg-[#e03040] disabled:opacity-50"
           >
             <Trash2 size={15} />
             {deletando ? "Excluindo..." : "Excluir"}
@@ -478,5 +484,20 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
       </div>
     </div>,
     document.body
+  );
+
+  return (
+    <>
+      {modal}
+      <ConfirmDeleteModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Excluir tarefa"
+        description={`Tem certeza que deseja excluir a tarefa "${task.titulo}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir tarefa"
+        loading={deletando}
+      />
+    </>
   );
 }

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditTaskModal } from "./EditTaskModal";
 import { CreateColumnModal } from "./CreateColumnModal";
+import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { ToastContainer, useToast } from "@/components/Toast";
 
 import { KanbanColumn } from "@/components/kanban/KanbanColumn";
@@ -25,6 +27,8 @@ type FiltrosPainel = {
   busca: string;
 };
 
+type DeleteColumnTarget = { id: string; nome: string } | null;
+
 export default function Kanban() {
   const { tarefas, carregando, erro, listar, listarPorProjeto, criar, deletar } =
     useTarefasStore();
@@ -37,6 +41,8 @@ export default function Kanban() {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosPainel>({ prioridade: "", busca: "" });
+  const [deleteColumnTarget, setDeleteColumnTarget] = useState<DeleteColumnTarget>(null);
+  const [deletingColumn, setDeletingColumn] = useState(false);
 
   // ID da tarefa selecionada — a tarefa em si é derivada do store (auto-atualiza)
   const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState<string | null>(null);
@@ -47,6 +53,11 @@ export default function Kanban() {
 
   const [colunaInicialId, setColunaInicialId] = useState<string | undefined>();
 
+  // Ref para o container de scroll horizontal das colunas
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
   // Carregar tarefas ao montar / trocar projeto
   useEffect(() => {
     if (projetoAtual?.id) {
@@ -55,6 +66,45 @@ export default function Kanban() {
       listar();
     }
   }, [projetoAtual?.id, listar, listarPorProjeto]);
+
+  // Detectar se o board tem overflow para exibir botões nav
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+
+    const checkScroll = () => {
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    };
+
+    checkScroll();
+    el.addEventListener("scroll", checkScroll);
+
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      ro.disconnect();
+    };
+  }, []);
+
+  // Re-checar overflow quando colunas mudam
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const id = setTimeout(() => {
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, 100);
+    return () => clearTimeout(id);
+  }, [projetoAtual?.colunas?.length]);
+
+  function scrollBoard(direction: "left" | "right") {
+    const el = boardRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === "left" ? -420 : 420, behavior: "smooth" });
+  }
 
   // Filtrar tarefas do projeto atual + filtros do painel
   const tarefasDoProjeto = useMemo(() => {
@@ -135,14 +185,22 @@ export default function Kanban() {
     }
   }
 
-  async function handleDeletarColuna(colunaId: string, nomeColuna: string): Promise<void> {
-    if (!projetoAtual?.id) return;
-    if (!confirm(`Excluir a coluna "${nomeColuna}"? As tarefas serão mantidas sem coluna.`)) return;
+  // Abre modal de confirmação em vez de confirm() nativo
+  function pedirDeletarColuna(colunaId: string, nomeColuna: string) {
+    setDeleteColumnTarget({ id: colunaId, nome: nomeColuna });
+  }
+
+  async function handleConfirmarDeletarColuna(): Promise<void> {
+    if (!projetoAtual?.id || !deleteColumnTarget) return;
+    setDeletingColumn(true);
     try {
-      await deletarColuna(projetoAtual.id, colunaId);
-      toast.sucesso(`Coluna "${nomeColuna}" excluída.`);
+      await deletarColuna(projetoAtual.id, deleteColumnTarget.id);
+      toast.sucesso(`Coluna "${deleteColumnTarget.nome}" excluída.`);
+      setDeleteColumnTarget(null);
     } catch (err) {
       toast.erro(err instanceof Error ? err.message : "Erro ao excluir coluna");
+    } finally {
+      setDeletingColumn(false);
     }
   }
 
@@ -160,26 +218,57 @@ export default function Kanban() {
 
   function renderKanban() {
     return (
-      // Scroll horizontal, colunas em linha com largura fixa
-      <div className="flex gap-5 min-w-max">
-        {boardColumns.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            columnId={column.formColumnId}
-            title={column.title}
-            count={column.tarefas.length}
-            dotColor={column.dotColor}
-            progressColor={column.progressColor}
-            tarefas={column.tarefas}
-            onAddTask={() => openCreateTask(column.formColumnId)}
-            onSelectTask={(t) => openEditTask(t.id)}
-            onDeleteColumn={
-              column.formColumnId
-                ? () => handleDeletarColuna(column.formColumnId!, column.title)
-                : undefined
-            }
-          />
-        ))}
+      // Wrapper relativo para posicionar os botões de navegação sobrepostos
+      <div className="relative">
+        {/* Botão prev */}
+        {canScrollLeft && (
+          <button
+            type="button"
+            onClick={() => scrollBoard("left")}
+            aria-label="Colunas anteriores"
+            className="absolute left-0 top-1/2 z-10 -translate-y-1/2 -translate-x-2 grid h-10 w-10 place-items-center rounded-full border border-[#DDE7F3] bg-white shadow-md text-[#42516A] transition hover:border-[#5B35F5] hover:text-[#5B35F5]"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
+
+        {/* Scroll container */}
+        <div
+          ref={boardRef}
+          className="flex gap-5 overflow-x-auto pb-2 scroll-smooth"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {boardColumns.map((column) => (
+            <KanbanColumn
+              key={column.id}
+              columnId={column.formColumnId}
+              title={column.title}
+              count={column.tarefas.length}
+              dotColor={column.dotColor}
+              progressColor={column.progressColor}
+              tarefas={column.tarefas}
+              onAddTask={() => openCreateTask(column.formColumnId)}
+              onSelectTask={(t) => openEditTask(t.id)}
+              onDeleteColumn={
+                column.formColumnId
+                  ? () => pedirDeletarColuna(column.formColumnId!, column.title)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+
+        {/* Botão next */}
+        {canScrollRight && (
+          <button
+            type="button"
+            onClick={() => scrollBoard("right")}
+            aria-label="Próximas colunas"
+            className="absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-2 grid h-10 w-10 place-items-center rounded-full border border-[#DDE7F3] bg-white shadow-md text-[#42516A] transition hover:border-[#5B35F5] hover:text-[#5B35F5]"
+          >
+            <ChevronRight size={20} />
+          </button>
+        )}
       </div>
     );
   }
@@ -276,7 +365,7 @@ export default function Kanban() {
   const temFiltroAtivo = filtros.prioridade || filtros.busca.trim();
 
   return (
-    <div className="-m-6 min-h-screen bg-[#F4F7FB] font-sans text-[#202A3D]">
+    <div className="flex flex-col flex-1 bg-[#F4F7FB] font-sans text-[#202A3D]">
       <KanbanHeader
         projectName={projetoAtual?.nome ?? "Selecione um Projeto"}
         activeProjectLabel={projetoAtual ? "Projeto ativo" : undefined}
@@ -355,16 +444,16 @@ export default function Kanban() {
         </div>
       )}
 
-      {/* Loading */}
+      {/* Conteúdo principal */}
       {carregando && tarefas.length === 0 ? (
-        <main className="grid min-h-[420px] place-items-center">
+        <main className="grid min-h-[420px] place-items-center flex-1">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5B35F5] border-t-transparent" />
             <p className="text-sm font-medium text-[#7E8DA6]">Carregando tarefas...</p>
           </div>
         </main>
       ) : (
-        <main className="overflow-x-auto px-6 py-8">
+        <main className="flex-1 overflow-x-auto px-6 py-8">
           {view === "kanban" && renderKanban()}
           {view === "lista" && renderLista()}
           {view === "grade" && renderGrade()}
@@ -394,6 +483,17 @@ export default function Kanban() {
         isOpen={columnModalOpen}
         onClose={() => setColumnModalOpen(false)}
         onSubmit={handleCriarColuna}
+      />
+
+      {/* Modal de confirmação de exclusão de coluna — sem confirm() nativo */}
+      <ConfirmDeleteModal
+        isOpen={deleteColumnTarget !== null}
+        onClose={() => setDeleteColumnTarget(null)}
+        onConfirm={handleConfirmarDeletarColuna}
+        title="Excluir coluna"
+        description={`Tem certeza que deseja excluir a coluna "${deleteColumnTarget?.nome}"? As tarefas serão mantidas sem coluna e esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir coluna"
+        loading={deletingColumn}
       />
 
       <ToastContainer items={toast.toasts} onRemove={toast.remover} />

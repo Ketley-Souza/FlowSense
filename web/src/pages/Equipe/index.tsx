@@ -1,18 +1,40 @@
-/**
- * Página de Gerenciamento de Equipes
- * Componente refatorado com sub-componentes de modais
- */
-
-import { useState, useEffect } from "react";
-import { Mail, Plus, Loader, Edit2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, UserPlus, Users } from "lucide-react";
 import { useEquipesStore } from "@/store/useEquipesStore";
+import { useToastGlobal } from "@/contexts/ToastContext";
+import type { CargoConvite, Equipe, UsuarioEquipe } from "@/types";
+import type { StatusFiltro } from "./components/types";
+
+import { TeamHeader } from "./components/TeamHeader";
+import { TeamSwitcher } from "./components/TeamSwitcher";
+import { TeamInsights } from "./components/TeamInsights";
+import { MembersToolbar } from "./components/MembersToolbar";
+import { MembersList } from "./components/MembersList";
+import { ActivitySnapshot } from "./components/ActivitySnapshot";
+
 import { ModalConvidarMembro } from "./ModalConvidarMembro";
 import { ModalEditarEquipe } from "./ModalEditarEquipe";
 import { ModalCriarEquipe } from "./ModalCriarEquipe";
 import { ModalConfirmarDeletar } from "./ModalConfirmarDeletar";
-import type { UsuarioEquipe, CargoConvite } from "@/types";
+
+/** Skeleton que espelha a geometria exata de um MemberRow */
+function MemberRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-3">
+      <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-slate-100" />
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3.5 w-36 animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-48 animate-pulse rounded bg-slate-100" />
+      </div>
+      <div className="hidden h-5 w-16 animate-pulse rounded bg-slate-100 lg:block" />
+      <div className="hidden h-5 w-14 animate-pulse rounded bg-slate-100 lg:block" />
+      <div className="hidden h-5 w-24 animate-pulse rounded bg-slate-100 lg:block" />
+    </div>
+  );
+}
 
 export default function EquipePage() {
+  /* ─── Store ─────────────────────────────────────────────────────────── */
   const {
     equipes,
     equipeAtiva,
@@ -27,55 +49,81 @@ export default function EquipePage() {
     criar,
   } = useEquipesStore();
 
+  const toast = useToastGlobal();
+
+  /* ─── Estado local ───────────────────────────────────────────────────── */
   const [membros, setMembros] = useState<UsuarioEquipe[]>([]);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("TODOS");
   const [modalAberto, setModalAberto] = useState<
     "convidar" | "criar" | "editar" | "confirmar-deletar" | null
   >(null);
-
-  const [mensagem, setMensagem] = useState("");
   const [carregandoMembros, setCarregandoMembros] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
-  // Carregar equipes ao montar
-  useEffect(() => {
-    listar();
-  }, [listar]);
+  /* ─── Helpers ────────────────────────────────────────────────────────── */
+  function resetFiltros() {
+    setBusca("");
+    setStatusFiltro("TODOS");
+  }
 
-  // Carregar membros quando equipe ativa muda
-  useEffect(() => {
-    if (equipeAtiva) {
-      carregarMembros();
-    }
-  }, [equipeAtiva]);
-
-  async function carregarMembros() {
-    if (!equipeAtiva) return;
+  async function recarregarMembrosAtual() {
+    if (!equipeAtiva?.id) return;
     setCarregandoMembros(true);
     try {
       const data = await listarMembros(equipeAtiva.id);
       setMembros(data || []);
-    } catch (error) {
-      console.error(error);
+    } catch {
       setMembros([]);
     } finally {
       setCarregandoMembros(false);
     }
   }
 
+  /* ─── Effects ────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    listar();
+  }, [listar]);
+
+  useEffect(() => {
+    const equipeId = equipeAtiva?.id;
+    let cancelado = false;
+    if (!equipeId) return;
+
+    Promise.resolve().then(async () => {
+      if (cancelado) return;
+      setCarregandoMembros(true);
+      try {
+        const data = await listarMembros(equipeId);
+        if (!cancelado) setMembros(data || []);
+      } catch {
+        if (!cancelado) setMembros([]);
+      } finally {
+        if (!cancelado) setCarregandoMembros(false);
+      }
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [equipeAtiva?.id, listarMembros]);
+
+  /* ─── Handlers ───────────────────────────────────────────────────────── */
+  function handleDefinirAtiva(equipe: Equipe) {
+    resetFiltros();
+    definirAtiva(equipe);
+  }
+
   async function handleConvidar(nome: string, email: string, cargo: CargoConvite) {
     if (!equipeAtiva) return;
     setEnviando(true);
-
     try {
       await convidarMembro(equipeAtiva.id, { nome, email, cargo });
-      setMensagem("Convite enviado com sucesso!");
+      toast.sucesso("Convite enviado com sucesso!");
       setModalAberto(null);
-      await carregarMembros();
-
-      setTimeout(() => setMensagem(""), 3000);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Erro ao convidar";
-      setMensagem(msg);
+      await recarregarMembrosAtual();
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao convidar");
     } finally {
       setEnviando(false);
     }
@@ -84,15 +132,13 @@ export default function EquipePage() {
   async function handleCriarEquipe(nome: string) {
     setEnviando(true);
     try {
-      const novaEquipe = await criar({ nome });
-      setMensagem("Equipe criada com sucesso!");
-      definirAtiva(novaEquipe);
+      const nova = await criar({ nome });
+      toast.sucesso("Equipe criada!");
+      resetFiltros();
+      definirAtiva(nova);
       setModalAberto(null);
-
-      setTimeout(() => setMensagem(""), 3000);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Erro ao criar equipe";
-      setMensagem(msg);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao criar equipe");
     } finally {
       setEnviando(false);
     }
@@ -101,20 +147,13 @@ export default function EquipePage() {
   async function handleEditarEquipe(nome: string, descricao: string) {
     if (!equipeAtiva) return;
     setEnviando(true);
-
     try {
-      const equipeAtualizada = await atualizar(equipeAtiva.id, {
-        nome,
-        descricao,
-      });
-      setMensagem("Equipe atualizada com sucesso!");
-      definirAtiva(equipeAtualizada);
+      const atualizada = await atualizar(equipeAtiva.id, { nome, descricao });
+      toast.sucesso("Equipe atualizada!");
+      definirAtiva(atualizada);
       setModalAberto(null);
-
-      setTimeout(() => setMensagem(""), 3000);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Erro ao atualizar";
-      setMensagem(msg);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao atualizar");
     } finally {
       setEnviando(false);
     }
@@ -123,260 +162,241 @@ export default function EquipePage() {
   async function handleDeletarEquipe() {
     if (!equipeAtiva) return;
     setEnviando(true);
-
     try {
       await deletar(equipeAtiva.id);
-      setMensagem("Equipe deletada com sucesso!");
+      toast.sucesso("Equipe excluída.");
       setModalAberto(null);
-
-      // Selecionar primeira equipe disponível
-      if (equipes.length > 1) {
-        const proximaEquipe = equipes.find((eq) => eq.id !== equipeAtiva.id);
-        if (proximaEquipe) {
-          definirAtiva(proximaEquipe);
-        }
+      const proxima = equipes.find((eq) => eq.id !== equipeAtiva.id);
+      if (proxima) {
+        resetFiltros();
+        definirAtiva(proxima);
       }
-
-      setTimeout(() => setMensagem(""), 3000);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Erro ao deletar";
-      setMensagem(msg);
+    } catch (e) {
+      toast.erro(e instanceof Error ? e.message : "Erro ao deletar");
     } finally {
       setEnviando(false);
     }
   }
 
-  const cores = [
-    "bg-indigo-500",
-    "bg-blue-400",
-    "bg-pink-400",
-    "bg-emerald-400",
-    "bg-orange-400",
-    "bg-purple-400",
-    "bg-red-400",
-    "bg-green-400",
-  ];
+  /* ─── Dados derivados ────────────────────────────────────────────────── */
+  const totais = useMemo(() => {
+    const ativos = membros.filter((m) => m.status === "ATIVO").length;
+    const pendentes = membros.filter((m) => m.status === "PENDENTE").length;
+    const gestores = membros.filter((m) =>
+      ["ADMIN", "GERENTE"].includes(m.cargo)
+    ).length;
+    return { ativos, pendentes, gestores };
+  }, [membros]);
 
-  function getCor(id: string) {
-    const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return cores[hash % cores.length];
+  const membrosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return membros.filter((m) => {
+      const correspondeBusca =
+        !termo ||
+        m.usuario.nome.toLowerCase().includes(termo) ||
+        m.usuario.email.toLowerCase().includes(termo);
+      const correspondeStatus =
+        statusFiltro === "TODOS" || m.status === statusFiltro;
+      return correspondeBusca && correspondeStatus;
+    });
+  }, [busca, membros, statusFiltro]);
+
+  const membrosAtivos = membrosFiltrados.filter((m) => m.status !== "PENDENTE");
+  const membrosPendentes = membrosFiltrados.filter((m) => m.status === "PENDENTE");
+
+  /* ─── Render: loading inicial ────────────────────────────────────────── */
+  if (carregando && equipes.length === 0) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3">
+        <Loader2 className="animate-spin text-slate-400" size={24} />
+        <p className="text-sm text-slate-400">Carregando equipes…</p>
+      </div>
+    );
   }
 
-  // ===== RENDERIZAÇÃO =====
+  /* ─── Render: sem equipes ────────────────────────────────────────────── */
+  if (!carregando && equipes.length === 0) {
+    return (
+      <div className="px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mx-auto w-full max-w-7xl">
+          <header className="mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              FlowSense
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+              Equipe
+            </h1>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">
+              Crie seu primeiro espaço para organizar colaboração, permissões e
+              produtividade em torno dos projetos.
+            </p>
+          </header>
 
-  return (
-    <div className="min-h-screen bg-[#f8f9fc]">
-      {/* Mensagem de Feedback */}
-      {mensagem && (
-        <div className="fixed top-4 right-4 bg-blue-100 text-blue-700 px-4 py-3 rounded-lg border border-blue-300 z-40">
-          {mensagem}
-        </div>
-      )}
-
-      {/* SEÇÃO: Seletor de Equipe */}
-      {carregando || equipes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-          {carregando && (
-            <>
-              <Loader className="animate-spin" size={32} />
-              <p className="text-slate-600">Carregando equipes...</p>
-            </>
-          )}
-          {!carregando && equipes.length === 0 && (
-            <>
-              <p className="text-slate-600 text-lg">Nenhuma equipe encontrada</p>
-              <button
-                onClick={() => setModalAberto("criar")}
-                className="bg-[#4f35f5] text-white px-4 py-2 rounded-lg flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Criar Equipe
-              </button>
-            </>
-          )}
-        </div>
-      ) : (
-        <section className="p-8">
-          {/* Cabeçalho */}
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-4">Equipes</h1>
-
-              {/* Lista de Equipes */}
-              <div className="flex flex-wrap gap-2">
-                {equipes.map((eq) => (
-                  <button
-                    key={eq.id}
-                    onClick={() => definirAtiva(eq)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      equipeAtiva?.id === eq.id
-                        ? "bg-[#4f35f5] text-white"
-                        : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {eq.nome} {eq.eh_pessoal && <span className="ml-1">(Pessoal)</span>}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setModalAberto("criar")}
-                  className="px-4 py-2 rounded-lg text-sm font-medium border border-dashed border-slate-300 text-slate-700 hover:bg-slate-50 flex items-center gap-1"
-                >
-                  <Plus size={16} />
-                  Nova
-                </button>
-              </div>
+          <div className="rounded-lg border border-slate-200 bg-white px-6 py-14 text-center shadow-sm shadow-slate-200/40">
+            <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
+              <Users size={22} />
             </div>
+            <h2 className="text-base font-semibold text-slate-950">
+              Nenhuma equipe criada
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+              Comece com uma equipe enxuta e convide as pessoas certas quando o
+              fluxo estiver pronto.
+            </p>
+            <button
+              id="create-first-team"
+              onClick={() => setModalAberto("criar")}
+              className="mt-6 inline-flex h-9 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              <Plus size={15} />
+              Criar primeira equipe
+            </button>
+          </div>
+        </div>
+
+        <ModalCriarEquipe
+          isOpen={modalAberto === "criar"}
+          onClose={() => setModalAberto(null)}
+          onSubmit={handleCriarEquipe}
+          enviando={enviando}
+        />
+      </div>
+    );
+  }
+
+  /* ─── Render: main ───────────────────────────────────────────────────── */
+  return (
+    <div className="px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-6">
+        {/* ── Page header ── */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              FlowSense
+            </p>
+            <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-slate-950">
+              Equipe
+            </h1>
+            <p className="mt-1.5 max-w-lg text-sm leading-6 text-slate-500">
+              Gerencie colaboração, permissões e sinais operacionais com clareza.
+            </p>
           </div>
 
-          {erro && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {erro}
-            </div>
-          )}
+          {/* TeamSwitcher com "Nova equipe" integrado */}
+          <div className="shrink-0">
+            <TeamSwitcher
+              equipes={equipes}
+              equipeAtiva={equipeAtiva}
+              onSelect={handleDefinirAtiva}
+              onNova={() => setModalAberto("criar")}
+            />
+          </div>
+        </header>
 
-          {/* SEÇÃO: Detalhes da Equipe */}
-          {equipeAtiva && (
-            <>
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h2 className="text-2xl font-bold text-slate-900">
-                      {equipeAtiva.nome}
-                    </h2>
-                    {equipeAtiva.eh_pessoal && (
-                      <span className="inline-block px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 font-medium">
-                        Pessoal
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-500">
-                    {membros.length} membro{membros.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
+        {/* ── Conteúdo principal ── */}
+        {equipeAtiva && (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_296px]">
+            {/* Painel esquerdo */}
+            <main className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
+              <TeamHeader
+                equipe={equipeAtiva}
+                totalMembros={membros.length}
+                totalAtivos={totais.ativos}
+                totalPendentes={totais.pendentes}
+                onInvite={() => setModalAberto("convidar")}
+                onEdit={() => setModalAberto("editar")}
+                onDelete={() => setModalAberto("confirmar-deletar")}
+              />
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setModalAberto("convidar")}
-                    className="bg-[#4f35f5] text-white px-5 py-3 rounded-lg text-sm flex items-center gap-2 hover:bg-[#3f2bd0]"
-                  >
-                    <Plus size={16} />
-                    Adicionar Membro
-                  </button>
+              <TeamInsights
+                totalMembros={membros.length}
+                totalAtivos={totais.ativos}
+                totalPendentes={totais.pendentes}
+                totalGestores={totais.gestores}
+              />
 
-                  {!equipeAtiva.eh_pessoal && (
-                    <>
-                      <button
-                        onClick={() => setModalAberto("editar")}
-                        className="bg-slate-200 text-slate-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2 hover:bg-slate-300"
-                      >
-                        <Edit2 size={16} />
-                        Editar
-                      </button>
-
-                      <button
-                        onClick={() => setModalAberto("confirmar-deletar")}
-                        className="bg-red-100 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2 hover:bg-red-200"
-                      >
-                        <Trash2 size={16} />
-                        Deletar
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* SEÇÃO: Lista de Membros */}
-              {carregandoMembros ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loader className="animate-spin" />
-                </div>
-              ) : membros.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-slate-600">Nenhum membro nesta equipe</p>
-                  <p className="text-sm text-slate-500">
-                    Convide alguém para começar
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {membros.map((membro) => (
-                    <div
-                      key={membro.usuario_id}
-                      className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition"
-                    >
-                      <div className="flex gap-4">
-                        <div
-                          className={`${getCor(membro.usuario_id)} w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold`}
-                        >
-                          {membro.usuario.nome
-                            .split(" ")
-                            .slice(0, 2)
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()}
-                        </div>
-
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-slate-900">
-                            {membro.usuario.nome}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            {membro.usuario.email}
-                          </p>
-                          <div className="flex gap-2 mt-2">
-                            <span className="inline-block px-2 py-1 rounded text-xs bg-slate-100 text-slate-700 font-medium">
-                              {membro.cargo}
-                            </span>
-                            <span
-                              className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                                membro.status === "ATIVO"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                              }`}
-                            >
-                              {membro.status}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {/* Erro inline */}
+              {erro && (
+                <div className="mx-5 mt-4 rounded-md border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {erro}
                 </div>
               )}
-            </>
-          )}
-        </section>
+
+              <MembersToolbar
+                busca={busca}
+                statusFiltro={statusFiltro}
+                totalResultados={membrosFiltrados.length}
+                onBuscaChange={setBusca}
+                onStatusChange={setStatusFiltro}
+              />
+
+              {/* Lista ou skeleton */}
+              {carregandoMembros ? (
+                <div className="border-t border-slate-100">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <MemberRowSkeleton key={i} />
+                  ))}
+                </div>
+              ) : (
+                <MembersList
+                  membrosAtivos={membrosAtivos}
+                  membrosPendentes={membrosPendentes}
+                  busca={busca}
+                  onClearBusca={() => setBusca("")}
+                  onInvite={() => setModalAberto("convidar")}
+                />
+              )}
+            </main>
+
+            {/* Sidebar */}
+            <ActivitySnapshot
+              membros={membros}
+              totalPendentes={totais.pendentes}
+              equipe={equipeAtiva}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── FAB mobile ── */}
+      {equipeAtiva && (
+        <button
+          id="fab-invite"
+          onClick={() => setModalAberto("convidar")}
+          className="fixed bottom-5 right-5 z-30 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-white shadow-xl shadow-slate-950/20 transition hover:bg-slate-800 sm:hidden"
+          title="Convidar membro"
+          aria-label="Convidar membro"
+        >
+          <UserPlus size={20} />
+        </button>
       )}
 
-      {/* MODAIS */}
+      {/* ── Modais ── */}
       <ModalConvidarMembro
         isOpen={modalAberto === "convidar"}
         onClose={() => setModalAberto(null)}
         onSubmit={handleConvidar}
         enviando={enviando}
       />
-
       <ModalCriarEquipe
         isOpen={modalAberto === "criar"}
         onClose={() => setModalAberto(null)}
         onSubmit={handleCriarEquipe}
         enviando={enviando}
       />
-
       <ModalEditarEquipe
         isOpen={modalAberto === "editar"}
         onClose={() => setModalAberto(null)}
         onSubmit={handleEditarEquipe}
-        nomeInicial={equipeAtiva?.nome || ""}
-        descricaoInicial={equipeAtiva?.descricao || ""}
+        nomeInicial={equipeAtiva?.nome ?? ""}
+        descricaoInicial={equipeAtiva?.descricao ?? ""}
         enviando={enviando}
       />
-
       <ModalConfirmarDeletar
         isOpen={modalAberto === "confirmar-deletar"}
         onClose={() => setModalAberto(null)}
         onConfirm={handleDeletarEquipe}
-        equipeName={equipeAtiva?.nome || ""}
+        equipeName={equipeAtiva?.nome ?? ""}
         enviando={enviando}
       />
     </div>
