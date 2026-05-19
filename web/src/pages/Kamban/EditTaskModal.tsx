@@ -1,170 +1,482 @@
 import React, { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
-import { BaseModal } from "@/components/Modal";
+import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square } from "lucide-react";
+import { createPortal } from "react-dom";
+import type { Tarefa, Subtarefa, Tag } from "@/types";
+import { useTarefasStore } from "@/store/useTarefasStore";
+import { useToast } from "@/components/Toast";
+import { calcularProgressoTarefa, formatarDataBR } from "@/utils/kanban";
+
+type Aba = "detalhes" | "comentarios" | "anexos" | "historico";
+
+const prioridadeClasses: Record<string, string> = {
+  BAIXA: "bg-[#EEF1FF] text-[#5147F5]",
+  MEDIA: "bg-[#FFF9E8] text-[#F5A400]",
+  ALTA: "bg-[#FFF1F2] text-[#FF4F58]",
+};
+const prioridadeLabels: Record<string, string> = {
+  BAIXA: "Sem urgência",
+  MEDIA: "Importante",
+  ALTA: "Alta Prioridade",
+};
 
 interface EditTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    titulo: string;
-    descricao: string;
-    prioridade: "BAIXA" | "MEDIA" | "ALTA";
-    progresso: number;
-  }) => Promise<void>;
+  onEdit: (tarefa: Tarefa) => void;
   onDelete: () => Promise<void>;
-  task?: {
-    id: string;
-    titulo: string;
-    descricao?: string;
-    prioridade: "BAIXA" | "MEDIA" | "ALTA";
-    progresso: number;
-  };
+  task?: Tarefa;
 }
 
-export function EditTaskModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  onDelete,
-  task,
-}: EditTaskModalProps) {
-  const [titulo, setTitulo] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [prioridade, setPrioridade] = useState<"BAIXA" | "MEDIA" | "ALTA">(
-    "MEDIA"
-  );
-  const [progresso, setProgresso] = useState(0);
-  const [carregando, setCarregando] = useState(false);
+export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditTaskModalProps) {
+  const [abaAtiva, setAbaAtiva] = useState<Aba>("detalhes");
+  const [novoComentario, setNovoComentario] = useState("");
+  const [nomeAnexo, setNomeAnexo] = useState("");
+  const [urlAnexo, setUrlAnexo] = useState("");
+  const [showAnexoForm, setShowAnexoForm] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [deletando, setDeletando] = useState(false);
+
+  const { atualizar, adicionarComentario, adicionarAnexo } = useTarefasStore();
+  const toast = useToast();
 
   useEffect(() => {
-    if (task) {
-      setTitulo(task.titulo);
-      setDescricao(task.descricao || "");
-      setPrioridade(task.prioridade);
-      setProgresso(task.progresso);
+    if (isOpen) {
+      setAbaAtiva("detalhes");
+      setNovoComentario("");
+      setShowAnexoForm(false);
     }
-  }, [task, isOpen]);
+  }, [isOpen, task?.id]);
 
-  async function handleSubmit() {
-    if (!titulo.trim()) return;
+  if (!isOpen || !task) return null;
 
-    setCarregando(true);
+  const progresso = calcularProgressoTarefa(task);
+  const totalSubtarefas = task.subtarefas?.length ?? 0;
+  const subtarefasConcluidas = task.subtarefas?.filter((s) => s.concluida).length ?? 0;
+  const comentariosCount = task.comentarios?.length ?? task._count?.comentarios ?? 0;
+  const anexosCount = task.anexos?.length ?? task._count?.anexos ?? 0;
+  const historicosCount = task.historicos?.length ?? 0;
 
+  const abas: { key: Aba; label: string; count?: number }[] = [
+    { key: "detalhes", label: "Detalhes" },
+    { key: "comentarios", label: "Comentários", count: comentariosCount },
+    { key: "anexos", label: "Anexos", count: anexosCount },
+    { key: "historico", label: "Histórico", count: historicosCount },
+  ];
+
+  async function toggleSubtarefa(sub: Subtarefa) {
+    if (!task) return;
+    const novasSubtarefas = (task.subtarefas ?? []).map((s) =>
+      s.id === sub.id ? { ...s, concluida: !s.concluida } : s
+    );
     try {
-      await onSubmit({
-        titulo,
-        descricao,
-        prioridade,
-        progresso,
+      await atualizar(task.id, {
+        subtarefas: novasSubtarefas.map((s) => ({
+          id: s.id,
+          titulo: s.titulo,
+          concluida: s.concluida,
+          ordem: s.ordem,
+        })),
       });
-      onClose();
+    } catch {
+      toast.erro("Erro ao atualizar subtarefa");
+    }
+  }
+
+  async function handleEnviarComentario() {
+    if (!novoComentario.trim() || !task) return;
+    setEnviando(true);
+    try {
+      await adicionarComentario(task.id, { texto: novoComentario.trim() });
+      setNovoComentario("");
+    } catch {
+      toast.erro("Erro ao enviar comentário");
     } finally {
-      setCarregando(false);
+      setEnviando(false);
+    }
+  }
+
+  async function handleAdicionarAnexo() {
+    if (!urlAnexo.trim() || !task) return;
+    setEnviando(true);
+    try {
+      await adicionarAnexo(task.id, {
+        nome: nomeAnexo.trim() || urlAnexo.split("/").pop() || "Anexo",
+        url: urlAnexo.trim(),
+        tipo: "application/octet-stream",
+      });
+      setNomeAnexo("");
+      setUrlAnexo("");
+      setShowAnexoForm(false);
+    } catch {
+      toast.erro("Erro ao adicionar anexo");
+    } finally {
+      setEnviando(false);
     }
   }
 
   async function handleDelete() {
-    if (!confirm("Tem certeza que deseja deletar esta tarefa?")) return;
-
-    setCarregando(true);
+    if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+    setDeletando(true);
     try {
       await onDelete();
-      onClose();
     } finally {
-      setCarregando(false);
+      setDeletando(false);
     }
   }
 
-  return (
-    <BaseModal
-      isOpen={isOpen && !!task}
-      onClose={onClose}
-      title="Editar Tarefa"
-      size="md"
-      footer={
-        <>
-          <button
-            onClick={handleDelete}
-            className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-            title="Deletar tarefa"
-          >
-            <Trash2 size={20} />
-          </button>
-          <div className="flex-1" />
+  function tempoRelativo(data: string): string {
+    const diff = Date.now() - new Date(data).getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "Agora";
+    if (min < 60) return `Há ${min}min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `Há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `Há ${d}d`;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
+      <div
+        className="relative w-full max-w-[560px] max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-[#EEF2F8] px-6 py-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-bold text-[#202A3D] truncate">{task.titulo}</h2>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${prioridadeClasses[task.prioridade]}`}>
+                {prioridadeLabels[task.prioridade]}
+              </span>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#7E8DA6] transition hover:bg-slate-100 hover:text-[#202A3D]"
           >
-            Cancelar
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Abas */}
+        <div className="flex gap-1 border-b border-[#EEF2F8] px-6">
+          {abas.map((aba) => (
+            <button
+              key={aba.key}
+              type="button"
+              onClick={() => setAbaAtiva(aba.key)}
+              className={[
+                "pb-3 pt-3 px-1 text-sm font-semibold border-b-2 transition whitespace-nowrap",
+                abaAtiva === aba.key
+                  ? "border-[#5B35F5] text-[#5B35F5]"
+                  : "border-transparent text-[#7E8DA6] hover:text-[#202A3D]",
+              ].join(" ")}
+            >
+              {aba.label}
+              {aba.count !== undefined && aba.count > 0 && (
+                <span className="ml-1 text-xs">({aba.count})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Conteúdo das abas */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+
+          {/* ===== ABA DETALHES ===== */}
+          {abaAtiva === "detalhes" && (
+            <div className="space-y-4">
+              {task.descricao && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Descrição</p>
+                  <p className="text-sm text-[#40506A] leading-relaxed">{task.descricao}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Status</p>
+                  <p className="text-sm font-medium text-[#202A3D]">{task.coluna?.nome ?? "Sem coluna"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Progresso</p>
+                  <p className="text-sm font-bold text-[#202A3D]">{progresso}%</p>
+                </div>
+              </div>
+
+              {/* Barra de progresso */}
+              <div className="h-2 rounded-full bg-[#EEF2F8] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#5B35F5] transition-all"
+                  style={{ width: `${progresso}%` }}
+                />
+              </div>
+
+              {/* Datas */}
+              {(task.data_inicio || task.data_fim || task.prazo) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Início</p>
+                    <p className="text-sm text-[#202A3D]">
+                      📅 {formatarDataBR(task.data_inicio ?? task.prazo)}
+                    </p>
+                  </div>
+                  {task.data_fim && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-1">Fim</p>
+                      <p className="text-sm text-[#202A3D]">📅 {formatarDataBR(task.data_fim)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Atribuídos */}
+              {((task.membros?.length ?? 0) > 0 || task.responsavel) && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-2">Atribuídos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      ...(task.responsavel ? [{ usuario: task.responsavel, isResponsavel: true }] : []),
+                      ...(task.membros?.filter((m) => m.usuario.id !== task.responsavel?.id).map((m) => ({ usuario: m.usuario, isResponsavel: false })) ?? []),
+                    ].map(({ usuario, isResponsavel }) => (
+                      <div key={usuario.id} className="flex items-center gap-2">
+                        <div className="grid h-8 w-8 place-items-center rounded-full bg-[#7480FF] text-xs font-bold text-white">
+                          {usuario.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm text-[#40506A]">
+                          {usuario.nome}
+                          {isResponsavel && <span className="ml-1 text-[10px] text-[#9EB2CC]">(resp.)</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {(task.tags?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {task.tags!.map((tt) => (
+                      <span
+                        key={tt.tag.id}
+                        className="rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+                        style={{ backgroundColor: tt.tag.cor }}
+                      >
+                        {tt.tag.nome}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Subtarefas */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC] mb-2">
+                  Subtarefas {totalSubtarefas > 0 && `(${subtarefasConcluidas}/${totalSubtarefas})`}
+                </p>
+                {totalSubtarefas === 0 ? (
+                  <p className="text-sm text-[#9EB2CC]">Nenhuma subtarefa</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {task.subtarefas!.map((sub) => (
+                      <li
+                        key={sub.id}
+                        className="flex items-center gap-2.5 cursor-pointer group"
+                        onClick={() => toggleSubtarefa(sub)}
+                      >
+                        {sub.concluida ? (
+                          <CheckSquare size={18} className="shrink-0 text-[#5B35F5]" />
+                        ) : (
+                          <Square size={18} className="shrink-0 text-[#C9D5E6] group-hover:text-[#5B35F5]" />
+                        )}
+                        <span className={`text-sm ${sub.concluida ? "line-through text-[#9EB2CC]" : "text-[#202A3D]"}`}>
+                          {sub.titulo}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== ABA COMENTÁRIOS ===== */}
+          {abaAtiva === "comentarios" && (
+            <div className="flex flex-col gap-4">
+              {(task.comentarios?.length ?? 0) === 0 ? (
+                <p className="text-sm text-center text-[#9EB2CC] py-8">Nenhum comentário ainda</p>
+              ) : (
+                <div className="space-y-4">
+                  {task.comentarios!.map((c) => (
+                    <div key={c.id} className="flex gap-3">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#7480FF] text-xs font-bold text-white">
+                        {(c.usuario?.nome ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-[#202A3D]">{c.usuario?.nome ?? "Usuário"}</span>
+                          <span className="text-xs text-[#9EB2CC]">{tempoRelativo(c.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-[#40506A] leading-relaxed">{c.texto}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Input de comentário */}
+              <div className="flex items-center gap-2 rounded-xl border border-[#DDE7F3] bg-[#F8FBFF] px-3 py-2">
+                <input
+                  type="text"
+                  value={novoComentario}
+                  onChange={(e) => setNovoComentario(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEnviarComentario(); } }}
+                  placeholder="Escreva um comentário..."
+                  className="flex-1 bg-transparent text-sm text-[#202A3D] placeholder-[#9EB2CC] outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleEnviarComentario}
+                  disabled={!novoComentario.trim() || enviando}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-[#5B35F5] text-white transition hover:bg-[#4D2DE0] disabled:opacity-40"
+                >
+                  <Send size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== ABA ANEXOS ===== */}
+          {abaAtiva === "anexos" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC]">Arquivos & Fotos</p>
+                <button
+                  type="button"
+                  onClick={() => setShowAnexoForm((v) => !v)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-[#5B35F5] hover:text-[#4D2DE0]"
+                >
+                  <Paperclip size={14} />
+                  Adicionar
+                </button>
+              </div>
+
+              {showAnexoForm && (
+                <div className="rounded-xl border border-[#DDE7F3] bg-[#F8FBFF] p-3 space-y-2">
+                  <input
+                    type="text"
+                    value={nomeAnexo}
+                    onChange={(e) => setNomeAnexo(e.target.value)}
+                    placeholder="Nome do arquivo (opcional)"
+                    className="w-full rounded-lg border border-[#DDE7F3] bg-white px-3 py-2 text-sm outline-none focus:border-[#5B35F5]"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={urlAnexo}
+                      onChange={(e) => setUrlAnexo(e.target.value)}
+                      placeholder="URL do arquivo"
+                      className="flex-1 rounded-lg border border-[#DDE7F3] bg-white px-3 py-2 text-sm outline-none focus:border-[#5B35F5]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAdicionarAnexo}
+                      disabled={!urlAnexo.trim() || enviando}
+                      className="rounded-lg bg-[#5B35F5] px-3 py-2 text-sm font-bold text-white hover:bg-[#4D2DE0] disabled:opacity-40"
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(task.anexos?.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-[#9EB2CC]">Nenhum anexo</p>
+              ) : (
+                <div className="space-y-2">
+                  {task.anexos!.map((a) => (
+                    <a
+                      key={a.id}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-xl border border-[#DDE7F3] bg-white px-4 py-3 transition hover:border-[#5B35F5]/40 hover:bg-[#F8FBFF]"
+                    >
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#EEF1FF]">
+                        <Paperclip size={16} className="text-[#5B35F5]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#202A3D]">{a.nome}</p>
+                        <p className="text-xs text-[#9EB2CC]">{formatarDataBR(a.createdAt)}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== ABA HISTÓRICO ===== */}
+          {abaAtiva === "historico" && (
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC]">Histórico de Alterações</p>
+              {(task.historicos?.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-[#9EB2CC]">Nenhuma alteração registrada</p>
+              ) : (
+                <div className="relative space-y-4 pl-5 before:absolute before:left-1.5 before:top-0 before:h-full before:w-0.5 before:bg-[#EEF2F8]">
+                  {task.historicos!.map((h) => (
+                    <div key={h.id} className="relative">
+                      <div className="absolute -left-5 top-1 h-3 w-3 rounded-full border-2 border-white bg-[#C9D5E6]" />
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[#202A3D] capitalize">
+                            {h.campo_alterado === "tarefa" ? "Tarefa criada" : h.campo_alterado}
+                          </p>
+                          <p className="text-xs text-[#9EB2CC]">
+                            por {h.usuario?.nome ?? "Sistema"}
+                          </p>
+                          {h.valor_novo && h.campo_alterado !== "tarefa" && (
+                            <p className="mt-0.5 text-xs text-[#40506A]">→ {h.valor_novo}</p>
+                          )}
+                        </div>
+                        <span className="shrink-0 text-xs text-[#9EB2CC]">{formatarDataBR(h.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 border-t border-[#EEF2F8] px-6 py-4">
+          <button
+            type="button"
+            onClick={() => onEdit(task)}
+            className="flex h-10 items-center gap-2 rounded-xl border border-[#DDE7F3] px-4 text-sm font-semibold text-[#40506A] transition hover:bg-slate-50"
+          >
+            <Pencil size={15} />
+            Editar
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={carregando || !titulo.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            type="button"
+            onClick={handleDelete}
+            disabled={deletando}
+            className="flex h-10 items-center gap-2 rounded-xl bg-[#FF4F58] px-4 text-sm font-bold text-white shadow-[0_4px_12px_rgba(255,79,88,0.3)] transition hover:bg-[#e03040] disabled:opacity-50"
           >
-            {carregando ? "Salvando..." : "Salvar"}
+            <Trash2 size={15} />
+            {deletando ? "Excluindo..." : "Excluir"}
           </button>
-        </>
-      }
-    >
-      {task && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título *
-            </label>
-            <input
-              type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descrição
-            </label>
-            <textarea
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Prioridade
-            </label>
-            <select
-              value={prioridade}
-              onChange={(e) =>
-                setPrioridade(e.target.value as "BAIXA" | "MEDIA" | "ALTA")
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="BAIXA">Baixa</option>
-              <option value="MEDIA">Média</option>
-              <option value="ALTA">Alta</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Progresso: {progresso}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={progresso}
-              onChange={(e) => setProgresso(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
         </div>
-      )}
-    </BaseModal>
+      </div>
+    </div>,
+    document.body
   );
 }

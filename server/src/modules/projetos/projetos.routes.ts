@@ -10,6 +10,8 @@ import {
   adicionarMembroProjeto,
   removerMembroProjeto,
   atualizarCargoMembroProjeto,
+  criarColuna,
+  deletarColuna,
 } from "./projetos.service";
 
 function handleServiceError(
@@ -211,6 +213,48 @@ export async function projetosRoutes(
           request.user.sub
         );
         return reply.send({ message: "Cargo do membro atualizado com sucesso" });
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // ============================================
+  // COLUNAS KANBAN
+  // ============================================
+
+  fastify.post(
+    "/projetos/:id/colunas",
+    async (
+      request: FastifyRequest<{ Params: { id: string }; Body: { nome: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const coluna = await criarColuna(
+          request.params.id,
+          request.body,
+          request.user.sub
+        );
+        return reply.code(201).send(coluna);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  fastify.delete(
+    "/projetos/:id/colunas/:colunaId",
+    async (
+      request: FastifyRequest<{ Params: { id: string; colunaId: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        await deletarColuna(
+          request.params.id,
+          request.params.colunaId,
+          request.user.sub
+        );
+        return reply.code(204).send();
       } catch (err) {
         return handleServiceError(err, reply, fastify);
       }

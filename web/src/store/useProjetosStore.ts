@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Projeto, CriarProjetoPayload, AtualizarProjetoPayload } from "./types";
+import type { ColunaKanban, Projeto, CriarProjetoPayload, AtualizarProjetoPayload } from "./types";
 import { projetoService } from "@/services/projetoService";
 
 interface ProjetosStore {
@@ -17,6 +17,8 @@ interface ProjetosStore {
   adicionarMembro: (projetoId: string, usuarioId: string, cargo: "GERENTE" | "MEMBRO") => Promise<void>;
   removerMembro: (projetoId: string, usuarioId: string) => Promise<void>;
   definirProjetoAtivo: (projeto: Projeto | null) => void;
+  criarColuna: (projetoId: string, nome: string) => Promise<ColunaKanban>;
+  deletarColuna: (projetoId: string, colunaId: string) => Promise<void>;
   limpar: () => void;
 }
 
@@ -147,8 +149,46 @@ export const useProjetosStore = create<ProjetosStore>((set: any) => ({
     set({ projetoAtual: projeto });
   },
 
+  criarColuna: async (projetoId: string, nome: string) => {
+    try {
+      const novaColuna = await projetoService.criarColuna(projetoId, nome);
+      set((state: ProjetosStore) => {
+        if (!state.projetoAtual || state.projetoAtual.id !== projetoId) return {};
+        return {
+          projetoAtual: {
+            ...state.projetoAtual,
+            colunas: [...(state.projetoAtual.colunas ?? []), novaColuna],
+          },
+        };
+      });
+      return novaColuna;
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Erro ao criar coluna";
+      set({ erro: mensagem });
+      throw error;
+    }
+  },
+
+  deletarColuna: async (projetoId: string, colunaId: string) => {
+    try {
+      await projetoService.deletarColuna(projetoId, colunaId);
+      set((state: ProjetosStore) => {
+        if (!state.projetoAtual || state.projetoAtual.id !== projetoId) return {};
+        return {
+          projetoAtual: {
+            ...state.projetoAtual,
+            colunas: (state.projetoAtual.colunas ?? []).filter((c) => c.id !== colunaId),
+          },
+        };
+      });
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Erro ao deletar coluna";
+      set({ erro: mensagem });
+      throw error;
+    }
+  },
+
   limpar: () => {
     set({ projetos: [], projetoAtual: null, carregando: false, erro: null });
   },
 }));
-

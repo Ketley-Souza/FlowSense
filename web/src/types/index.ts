@@ -78,7 +78,8 @@ export interface Projeto {
   equipe_id?: string;
   membros?: ProjetoMembro[];
   colunas?: ColunaKanban[];
-  tags?: any[];
+  tags?: Tag[];
+  tarefas?: Tarefa[];
   _count?: {
     tarefas: number;
     colunas: number;
@@ -109,10 +110,70 @@ export interface AtualizarProjetoPayload {
 }
 
 // ============================================
-// TAREFA
+// TAREFA - SUBTAREFA
 // ============================================
+export interface Subtarefa {
+  id: string;
+  titulo: string;
+  concluida: boolean;
+  ordem: number;
+  id_tarefa: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface TarefaMembro {
+  id_tarefa?: string;
+  id_usuario?: string;
   usuario: Usuario;
+  createdAt?: string;
+}
+
+export interface Tag {
+  id: string;
+  nome: string;
+  cor: string; // hex color, ex: #FF5733
+  id_projeto: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TarefaTag {
+  id_tarefa?: string;
+  id_tag?: string;
+  tag: Tag;
+  createdAt?: string;
+}
+
+export interface Comentario {
+  id: string;
+  texto: string;
+  id_usuario: string;
+  id_tarefa: string;
+  usuario?: Usuario;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Anexo {
+  id: string;
+  nome: string;
+  url: string;
+  tipo: string;
+  id_tarefa: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface HistoricoTarefa {
+  id: string;
+  campo_alterado: string;
+  valor_antigo?: string | null;
+  valor_novo?: string | null;
+  id_usuario: string;
+  id_tarefa: string;
+  usuario?: Usuario;
+  createdAt: string;
 }
 
 export interface Tarefa {
@@ -121,6 +182,10 @@ export interface Tarefa {
   descricao?: string;
   prioridade: "BAIXA" | "MEDIA" | "ALTA";
   progresso: number;
+  data_inicio?: string;
+  data_fim?: string;
+  prazo?: string;
+  ordem?: number;
   id_responsavel?: string;
   id_coluna?: string;
   id_projeto: string;
@@ -128,8 +193,11 @@ export interface Tarefa {
   coluna?: ColunaKanban;
   projeto: Projeto;
   membros?: TarefaMembro[];
-  tags?: any[];
-  subtarefas?: any[];
+  tags?: TarefaTag[];
+  subtarefas?: Subtarefa[];
+  comentarios?: Comentario[];
+  anexos?: Anexo[];
+  historicos?: HistoricoTarefa[];
   _count?: {
     comentarios: number;
     anexos: number;
@@ -142,8 +210,23 @@ export interface CriarTarefaPayload {
   titulo: string;
   descricao?: string;
   prioridade?: "BAIXA" | "MEDIA" | "ALTA";
+  data_inicio?: string;
+  data_fim?: string;
+  prazo?: string;
   id_coluna?: string;
   id_projeto: string;
+  id_responsavel?: string;
+  id_membros?: string[];
+  subtarefas?: Array<{
+    titulo: string;
+    concluida?: boolean;
+    ordem?: number;
+  }>;
+  tags?: Array<{
+    id?: string;
+    nome: string;
+    cor?: string;
+  }>;
 }
 
 export interface AtualizarTarefaPayload {
@@ -151,8 +234,33 @@ export interface AtualizarTarefaPayload {
   descricao?: string;
   prioridade?: "BAIXA" | "MEDIA" | "ALTA";
   progresso?: number;
+  data_inicio?: string;
+  data_fim?: string;
+  prazo?: string;
   id_responsavel?: string;
   id_coluna?: string;
+  id_membros?: string[];
+  subtarefas?: Array<{
+    id?: string;
+    titulo: string;
+    concluida?: boolean;
+    ordem?: number;
+  }>;
+  tags?: Array<{
+    id?: string;
+    nome: string;
+    cor?: string;
+  }>;
+}
+
+export interface CriarComentarioPayload {
+  texto: string;
+}
+
+export interface CriarAnexoPayload {
+  nome: string;
+  url: string;
+  tipo?: string;
 }
 
 // ============================================

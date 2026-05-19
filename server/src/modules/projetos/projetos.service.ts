@@ -4,8 +4,8 @@ import prisma from "../../lib/prisma";
 export const criarProjetoSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório."),
   descricao: z.string().optional(),
-  data_inicio: z.string().datetime().optional(),
-  data_fim: z.string().datetime().optional(),
+  data_inicio: z.string().optional(),
+  data_fim: z.string().optional(),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor deve ser um código hexadecimal válido").optional(),
   equipe_id: z.string().uuid("ID da equipe inválido").optional(),
   membros: z
@@ -21,8 +21,8 @@ export const criarProjetoSchema = z.object({
 export const atualizarProjetoSchema = z.object({
   nome: z.string().min(1).optional(),
   descricao: z.string().optional(),
-  data_inicio: z.string().datetime().optional(),
-  data_fim: z.string().datetime().optional(),
+  data_inicio: z.string().optional(),
+  data_fim: z.string().optional(),
   cor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
 });
 
@@ -64,6 +64,7 @@ export async function listarProjetos(usuarioId: string) {
         },
       },
       colunas: { select: { id: true, nome: true, ordem: true } },
+      tarefas: { select: { progresso: true } }, // só progresso — leve, sem N+1 pesado
       _count: { select: { tarefas: true, colunas: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -194,6 +195,7 @@ export async function criarProjeto(
         id_usuario: membro.id_usuario,
         cargo: membro.cargo || "MEMBRO",
       })),
+      skipDuplicates: true, // Ignora se o usuário já é membro
     });
   }
 
@@ -381,4 +383,82 @@ export async function listarUsuariosParaAdicionar() {
   });
 
   return usuarios;
+}
+
+// ============================================
+// COLUNAS KANBAN
+// ============================================
+
+export const criarColunaSchema = z.object({
+  nome: z.string().trim().min(1, "Nome da coluna é obrigatório."),
+});
+
+export async function criarColuna(
+  projetoId: string,
+  data: unknown,
+  usuarioId: string
+) {
+  const payload = criarColunaSchema.parse(data);
+
+  // Verificar acesso ao projeto (qualquer membro pode criar coluna)
+  const membro = await prisma.projetoMembro.findUnique({
+    where: {
+      id_projeto_id_usuario: {
+        id_projeto: projetoId,
+        id_usuario: usuarioId,
+      },
+    },
+  });
+
+  if (!membro) {
+    const error = new Error("Você não tem acesso a este projeto.");
+    (error as NodeJS.ErrnoException).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Determinar próxima ordem
+  const ultimaColuna = await prisma.colunaKanban.findFirst({
+    where: { id_projeto: projetoId },
+    orderBy: { ordem: "desc" },
+    select: { ordem: true },
+  });
+
+  const novaOrdem = (ultimaColuna?.ordem ?? 0) + 1;
+
+  const coluna = await prisma.colunaKanban.create({
+    data: {
+      nome: payload.nome,
+      ordem: novaOrdem,
+      id_projeto: projetoId,
+    },
+    select: { id: true, nome: true, ordem: true, id_projeto: true },
+  });
+
+  return coluna;
+}
+
+export async function deletarColuna(
+  projetoId: string,
+  colunaId: string,
+  usuarioId: string
+) {
+  await verificarGerenteProjeto(projetoId, usuarioId);
+
+  const coluna = await prisma.colunaKanban.findFirst({
+    where: { id: colunaId, id_projeto: projetoId },
+  });
+
+  if (!coluna) {
+    const error = new Error("Coluna não encontrada neste projeto.");
+    (error as NodeJS.ErrnoException).code = "NOT_FOUND";
+    throw error;
+  }
+
+  // Desassociar tarefas desta coluna antes de deletar
+  await prisma.tarefa.updateMany({
+    where: { id_coluna: colunaId },
+    data: { id_coluna: null },
+  });
+
+  await prisma.colunaKanban.delete({ where: { id: colunaId } });
 }

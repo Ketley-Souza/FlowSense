@@ -2,6 +2,8 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { autenticarMiddleware } from "../../middlewares/auth.middleware";
 import {
+  adicionarAnexo,
+  adicionarComentario,
   atualizarTarefa,
   criarTarefa,
   deletarTarefa,
@@ -27,6 +29,14 @@ function handleServiceError(
   }
 
   const error = err as NodeJS.ErrnoException;
+
+  if (error.code === "BAD_REQUEST") {
+    return reply.code(400).send({
+      statusCode: 400,
+      error: "Bad Request",
+      message: error.message,
+    });
+  }
 
   if (error.code === "NOT_FOUND") {
     return reply.code(404).send({
@@ -114,6 +124,44 @@ export async function tarefasRoutes(fastify: FastifyInstance): Promise<void> {
           request.user.sub
         );
         return reply.send(tarefa);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  fastify.post(
+    "/tarefas/:id/comentarios",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const tarefa = await adicionarComentario(
+          request.params.id,
+          request.body as unknown,
+          request.user.sub
+        );
+        return reply.code(201).send(tarefa);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  fastify.post(
+    "/tarefas/:id/anexos",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const tarefa = await adicionarAnexo(
+          request.params.id,
+          request.body as unknown,
+          request.user.sub
+        );
+        return reply.code(201).send(tarefa);
       } catch (err) {
         return handleServiceError(err, reply, fastify);
       }

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,14 +12,13 @@ import {
 } from "lucide-react";
 import { SidebarItem } from "../Sidebar/sidebarItem";
 import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
+import { useSidebar } from "@/contexts/SidebarContext";
 import logo from "@/assets/Logo.svg";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const usuarioLogado = getUsuarioLogado();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { isOpen, setIsOpen, isPinned, setIsPinned, isMobileOpen, setIsMobileOpen } = useSidebar();
 
   const handleMouseEnter = () => {
     if (!isPinned) setIsOpen(true);
@@ -67,12 +65,11 @@ export function Sidebar() {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
-          fixed md:static z-50 h-screen bg-neutral-50 border-r border-slate-200
+          fixed h-screen bg-neutral-50 border-r border-slate-200
           transition-all duration-300 ease-in-out
-          overflow-hidden
+          overflow-hidden left-0 top-0
           ${isOpen ? "w-64" : "w-20"}
-          ${isMobileOpen ? "left-0" : "-left-full"}
-          md:left-0
+          ${isMobileOpen ? "z-50" : "-left-full md:left-0 md:z-30"}
         `}
       >
         <div className="flex flex-col justify-between h-full">
@@ -170,7 +167,7 @@ export function Sidebar() {
               {/* USER */}
               <div className="flex items-center justify-between px-2 py-3 mt-2 group">
                 <div className="flex items-center flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-indigo-400 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                  <div className="w-10 h-10 bg-indigo-400 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0">
                     {usuarioLogado ? getInitials(usuarioLogado.nome) : "U"}
                   </div>
 
@@ -192,7 +189,7 @@ export function Sidebar() {
                 {isOpen && (
                   <button
                     onClick={handleLogout}
-                    className="flex-shrink-0 ml-2 p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
+                    className="shrink-0 ml-2 p-1 text-gray-400 hover:text-red-600 transition-colors rounded hover:bg-red-50"
                     title="Logout"
                   >
                     <LogOut size={16} />

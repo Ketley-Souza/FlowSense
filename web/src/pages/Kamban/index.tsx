@@ -1,480 +1,402 @@
-import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditTaskModal } from "./EditTaskModal";
+import { CreateColumnModal } from "./CreateColumnModal";
 import { ToastContainer, useToast } from "@/components/Toast";
-import { useTarefasStore } from "@/store/useTarefasStore";
-import { useProjetosStore } from "@/store/useProjetosStore";
-import type { Tarefa } from "@/store/types";
 
-// Cores de prioridade
-const prioridadeColors = {
-  BAIXA: "bg-blue-100 text-blue-800 border-blue-300",
-  MEDIA: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  ALTA: "bg-red-100 text-red-800 border-red-300",
+import { KanbanColumn } from "@/components/kanban/KanbanColumn";
+import { KanbanHeader } from "@/components/kanban/KanbanHeader";
+import { TaskCard } from "@/components/kanban/TaskCard";
+import { buildBoardColumns } from "@/utils/kanban";
+import type { ViewMode } from "@/components/kanban/BoardViewTabs";
+
+import { useProjetosStore } from "@/store/useProjetosStore";
+import { useTarefasStore } from "@/store/useTarefasStore";
+import type { CriarTarefaPayload } from "@/types";
+
+const PRIORIDADE_LABEL: Record<string, string> = {
+  BAIXA: "Sem urgência",
+  MEDIA: "Importante",
+  ALTA: "Alta Prioridade",
 };
 
-const prioridadeLabels = {
-  BAIXA: "Baixa",
-  MEDIA: "Média",
-  ALTA: "Alta",
+type FiltrosPainel = {
+  prioridade: "" | "BAIXA" | "MEDIA" | "ALTA";
+  busca: string;
 };
 
 export default function Kanban() {
-  const {
-    tarefas,
-    carregando,
-    erro,
-    listar,
-    criar,
-    atualizar,
-    deletar,
-  } = useTarefasStore();
-
-  const { projetoAtual } = useProjetosStore();
+  const { tarefas, carregando, erro, listar, listarPorProjeto, criar, deletar } =
+    useTarefasStore();
+  const { projetoAtual, criarColuna, deletarColuna } = useProjetosStore();
   const toast = useToast();
 
+  const [view, setView] = useState<ViewMode>("kanban");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [tarefaSelecionada, setTarefaSelecionada] = useState<Tarefa | null>(
-    null
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [filtros, setFiltros] = useState<FiltrosPainel>({ prioridade: "", busca: "" });
+
+  // ID da tarefa selecionada — a tarefa em si é derivada do store (auto-atualiza)
+  const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState<string | null>(null);
+  const tarefaSelecionada = useMemo(
+    () => tarefas.find((t) => t.id === tarefaSelecionadaId) ?? null,
+    [tarefas, tarefaSelecionadaId]
   );
-  const [filtroColuna, setFiltroColuna] = useState<string>("todas");
-  const [filtroProjeto, setFiltroProjeto] = useState<string>("todos");
 
-  // Carregar tarefas ao montar componente
+  const [colunaInicialId, setColunaInicialId] = useState<string | undefined>();
+
+  // Carregar tarefas ao montar / trocar projeto
   useEffect(() => {
-    listar();
-  }, [listar]);
+    if (projetoAtual?.id) {
+      listarPorProjeto(projetoAtual.id);
+    } else {
+      listar();
+    }
+  }, [projetoAtual?.id, listar, listarPorProjeto]);
 
-  async function handleCriarTarefa(payload: {
-    titulo: string;
-    descricao: string;
-    prioridade: "BAIXA" | "MEDIA" | "ALTA";
-    id_coluna?: string;
-  }): Promise<void> {
+  // Filtrar tarefas do projeto atual + filtros do painel
+  const tarefasDoProjeto = useMemo(() => {
+    let lista = projetoAtual
+      ? tarefas.filter((t) => t.id_projeto === projetoAtual.id)
+      : tarefas;
+
+    if (filtros.busca.trim()) {
+      const termo = filtros.busca.toLowerCase();
+      lista = lista.filter(
+        (t) =>
+          t.titulo.toLowerCase().includes(termo) ||
+          t.descricao?.toLowerCase().includes(termo)
+      );
+    }
+
+    if (filtros.prioridade) {
+      lista = lista.filter((t) => t.prioridade === filtros.prioridade);
+    }
+
+    return lista;
+  }, [projetoAtual, tarefas, filtros]);
+
+  // Construir colunas — sempre mostra as colunas do projeto
+  const boardColumns = useMemo(
+    () => buildBoardColumns(tarefasDoProjeto, projetoAtual?.colunas ?? []),
+    [projetoAtual?.colunas, tarefasDoProjeto]
+  );
+
+  // Colunas e membros/tags para modais
+  const colunasParaModal = useMemo(
+    () => (projetoAtual?.colunas ?? []).map((c) => ({ id: c.id, nome: c.nome })),
+    [projetoAtual?.colunas]
+  );
+  const membrosDoProejto = projetoAtual?.membros ?? [];
+  const tagsDoProejto = projetoAtual?.tags ?? [];
+
+  // ── Handlers ────────────────────────────────────────────────
+
+  async function handleCriarTarefa(payload: Omit<CriarTarefaPayload, "id_projeto">): Promise<void> {
+    const idProjeto = projetoAtual?.id;
+    if (!idProjeto) {
+      toast.erro("Selecione um projeto antes de criar tarefas.");
+      return;
+    }
     try {
-      // Se houver projeto ativo, usar ele; caso contrário, usar o primeiro projeto
-      let idProjeto = projetoAtual?.id;
-
-      if (!idProjeto) {
-        const projetos = [
-          ...new Map(
-            tarefas.map((t: Tarefa) => [t.id_projeto, t.projeto])
-          ).values(),
-        ];
-
-        if (projetos.length === 0) {
-          throw new Error(
-            "Nenhum projeto disponível. Crie um projeto primeiro ou selecione um projeto ativo na Dashboard."
-          );
-        }
-
-        idProjeto = (projetos[0] as any).id;
-      }
-
-      await criar({
-        ...payload,
-        id_projeto: idProjeto,
-      });
+      await criar({ ...payload, id_projeto: idProjeto });
       setCreateModalOpen(false);
+      setColunaInicialId(undefined);
       toast.sucesso("Tarefa criada com sucesso!");
     } catch (err) {
       toast.erro(err instanceof Error ? err.message : "Erro ao criar tarefa");
     }
   }
 
-  async function handleAtualizarTarefa(payload: {
-    titulo: string;
-    descricao: string;
-    prioridade: "BAIXA" | "MEDIA" | "ALTA";
-    progresso: number;
-  }): Promise<void> {
-    if (!tarefaSelecionada) return;
-
-    try {
-      await atualizar(tarefaSelecionada.id, payload);
-      setEditModalOpen(false);
-      setTarefaSelecionada(null);
-      toast.sucesso("Tarefa atualizada com sucesso!");
-    } catch (err) {
-      toast.erro(err instanceof Error ? err.message : "Erro ao atualizar tarefa");
-    }
-  }
-
   async function handleDeletarTarefa(): Promise<void> {
-    if (!tarefaSelecionada) return;
-
+    if (!tarefaSelecionadaId) return;
     try {
-      await deletar(tarefaSelecionada.id);
+      await deletar(tarefaSelecionadaId);
       setEditModalOpen(false);
-      setTarefaSelecionada(null);
-      toast.sucesso("Tarefa deletada com sucesso!");
+      setTarefaSelecionadaId(null);
+      toast.sucesso("Tarefa excluída com sucesso!");
     } catch (err) {
-      toast.erro(err instanceof Error ? err.message : "Erro ao deletar tarefa");
+      toast.erro(err instanceof Error ? err.message : "Erro ao excluir tarefa");
     }
   }
 
-  // Agrupar tarefas por coluna
-  const colunas = [
-    ...new Map(
-      tarefas
-        .filter((t: Tarefa) => t.coluna)
-        .map((t: Tarefa) => [t.coluna!.id, t.coluna!])
-    ).values(),
-  ];
-
-  const tarefasSemColuna = tarefas.filter((t: Tarefa) => !t.coluna);
-
-  // Aplicar filtros
-  const tarefasFiltradas = tarefas.filter((t: Tarefa) => {
-    // Se há projeto ativo, filtrar por ele
-    if (projetoAtual && t.id_projeto !== projetoAtual.id) {
-      return false;
+  async function handleCriarColuna(nome: string): Promise<void> {
+    if (!projetoAtual?.id) {
+      toast.erro("Selecione um projeto para criar colunas.");
+      return;
     }
-
-    if (
-      filtroColuna !== "todas" &&
-      filtroColuna !== "sem_coluna" &&
-      t.coluna?.id !== filtroColuna
-    ) {
-      return false;
+    try {
+      await criarColuna(projetoAtual.id, nome);
+      toast.sucesso(`Coluna "${nome}" criada!`);
+    } catch (err) {
+      toast.erro(err instanceof Error ? err.message : "Erro ao criar coluna");
     }
-    if (
-      filtroColuna === "sem_coluna" &&
-      t.coluna?.id !== undefined &&
-      t.coluna?.id !== null
-    ) {
-      return false;
-    }
-    if (filtroProjeto !== "todos" && t.id_projeto !== filtroProjeto) {
-      return false;
-    }
-    return true;
-  });
+  }
 
-  // Obter projetos únicos
-  const projetos = [
-    ...new Map(tarefas.map((t: Tarefa) => [t.id_projeto, t.projeto])).values(),
-  ];
+  async function handleDeletarColuna(colunaId: string, nomeColuna: string): Promise<void> {
+    if (!projetoAtual?.id) return;
+    if (!confirm(`Excluir a coluna "${nomeColuna}"? As tarefas serão mantidas sem coluna.`)) return;
+    try {
+      await deletarColuna(projetoAtual.id, colunaId);
+      toast.sucesso(`Coluna "${nomeColuna}" excluída.`);
+    } catch (err) {
+      toast.erro(err instanceof Error ? err.message : "Erro ao excluir coluna");
+    }
+  }
 
-  if (carregando && tarefas.length === 0) {
+  function openCreateTask(columnId?: string) {
+    setColunaInicialId(columnId);
+    setCreateModalOpen(true);
+  }
+
+  function openEditTask(tarefaId: string) {
+    setTarefaSelecionadaId(tarefaId);
+    setEditModalOpen(true);
+  }
+
+  // ── Views ───────────────────────────────────────────────────
+
+  function renderKanban() {
     return (
-      <main className="p-8">
-        <div className="text-center">
-          <p className="text-gray-500">Carregando tarefas...</p>
-        </div>
-      </main>
+      // Scroll horizontal, colunas em linha com largura fixa
+      <div className="flex gap-5 min-w-max">
+        {boardColumns.map((column) => (
+          <KanbanColumn
+            key={column.id}
+            columnId={column.formColumnId}
+            title={column.title}
+            count={column.tarefas.length}
+            dotColor={column.dotColor}
+            progressColor={column.progressColor}
+            tarefas={column.tarefas}
+            onAddTask={() => openCreateTask(column.formColumnId)}
+            onSelectTask={(t) => openEditTask(t.id)}
+            onDeleteColumn={
+              column.formColumnId
+                ? () => handleDeletarColuna(column.formColumnId!, column.title)
+                : undefined
+            }
+          />
+        ))}
+      </div>
     );
   }
 
-  return (
-    <main className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Kanban Board</h1>
-        <button
-          onClick={() => setCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          Nova Tarefa
-        </button>
+  function renderLista() {
+    return (
+      <div className="w-full overflow-x-auto rounded-2xl border border-[#DDE7F3] bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[#EEF2F8] bg-[#F8FBFF]">
+              <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#9EB2CC]">Tarefa</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#9EB2CC]">Coluna</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#9EB2CC]">Prioridade</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#9EB2CC]">Progresso</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-[#9EB2CC]">Prazo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tarefasDoProjeto.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-sm text-[#9EB2CC]">
+                  Nenhuma tarefa encontrada
+                </td>
+              </tr>
+            ) : (
+              tarefasDoProjeto.map((t) => {
+                const prog = t.subtarefas?.length
+                  ? Math.round((t.subtarefas.filter((s) => s.concluida).length / t.subtarefas.length) * 100)
+                  : t.progresso;
+                return (
+                  <tr
+                    key={t.id}
+                    onClick={() => openEditTask(t.id)}
+                    className="cursor-pointer border-b border-[#EEF2F8] transition hover:bg-[#F8FBFF]"
+                  >
+                    <td className="px-5 py-3">
+                      <p className="font-semibold text-[#202A3D]">{t.titulo}</p>
+                      {t.descricao && <p className="text-xs text-[#9EB2CC] truncate max-w-[260px]">{t.descricao}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-[#40506A]">{t.coluna?.nome ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={[
+                        "rounded-full px-2.5 py-0.5 text-xs font-bold",
+                        t.prioridade === "ALTA" ? "bg-[#FFF1F2] text-[#FF4F58]"
+                          : t.prioridade === "MEDIA" ? "bg-[#FFF9E8] text-[#F5A400]"
+                          : "bg-[#EEF1FF] text-[#5147F5]"
+                      ].join(" ")}>
+                        {PRIORIDADE_LABEL[t.prioridade]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-24 rounded-full bg-[#EEF2F8]">
+                          <div className="h-full rounded-full bg-[#5B35F5]" style={{ width: `${prog}%` }} />
+                        </div>
+                        <span className="text-xs font-semibold text-[#202A3D]">{prog}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[#9EB2CC]">
+                      {t.data_fim ? new Date(t.data_fim).toLocaleDateString("pt-BR")
+                        : t.prazo ? new Date(t.prazo).toLocaleDateString("pt-BR") : "—"}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
+    );
+  }
 
+  function renderGrade() {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        {tarefasDoProjeto.length === 0 ? (
+          <div className="col-span-full py-16 text-center text-sm text-[#9EB2CC]">
+            Nenhuma tarefa encontrada
+          </div>
+        ) : (
+          tarefasDoProjeto.map((t) => (
+            <TaskCard
+              key={t.id}
+              tarefa={t}
+              progressColor="#5B35F5"
+              onClick={() => openEditTask(t.id)}
+            />
+          ))
+        )}
+      </div>
+    );
+  }
+
+  const temFiltroAtivo = filtros.prioridade || filtros.busca.trim();
+
+  return (
+    <div className="-m-6 min-h-screen bg-[#F4F7FB] font-sans text-[#202A3D]">
+      <KanbanHeader
+        projectName={projetoAtual?.nome ?? "Selecione um Projeto"}
+        activeProjectLabel={projetoAtual ? "Projeto ativo" : undefined}
+        onCreateColumn={() => setColumnModalOpen(true)}
+        onCreateTask={() => openCreateTask()}
+        view={view}
+        onChangeView={setView}
+        filtrosAbertos={filtrosAbertos}
+        temFiltroAtivo={!!temFiltroAtivo}
+        onToggleFiltros={() => setFiltrosAbertos((v) => !v)}
+      />
+
+      {/* Painel de filtros */}
+      {filtrosAbertos && (
+        <div className="border-b border-[#DDE7F3] bg-white px-6 py-4">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Busca */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="mb-1 block text-xs font-semibold text-[#9EB2CC] uppercase tracking-wide">
+                Buscar
+              </label>
+              <input
+                type="text"
+                value={filtros.busca}
+                onChange={(e) => setFiltros((f) => ({ ...f, busca: e.target.value }))}
+                placeholder="Título ou descrição..."
+                className="w-full rounded-xl border border-[#DDE7F3] bg-[#F8FBFF] px-3 py-2 text-sm text-[#202A3D] placeholder-[#9EB2CC] outline-none focus:border-[#5B35F5] focus:ring-2 focus:ring-[#5B35F5]/10"
+              />
+            </div>
+
+            {/* Prioridade */}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[#9EB2CC] uppercase tracking-wide">
+                Prioridade
+              </label>
+              <div className="flex gap-2">
+                {(["", "BAIXA", "MEDIA", "ALTA"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setFiltros((f) => ({ ...f, prioridade: p }))}
+                    className={[
+                      "rounded-full px-3 py-1.5 text-xs font-bold border transition",
+                      filtros.prioridade === p
+                        ? p === "ALTA" ? "bg-[#FF4F58] border-[#FF4F58] text-white"
+                          : p === "MEDIA" ? "bg-[#F5A400] border-[#F5A400] text-white"
+                          : p === "BAIXA" ? "bg-[#5147F5] border-[#5147F5] text-white"
+                          : "bg-[#202A3D] border-[#202A3D] text-white"
+                        : "border-[#DDE7F3] text-[#40506A] hover:border-[#5B35F5]/40",
+                    ].join(" ")}
+                  >
+                    {p === "" ? "Todas" : PRIORIDADE_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Limpar */}
+            {temFiltroAtivo && (
+              <button
+                type="button"
+                onClick={() => setFiltros({ prioridade: "", busca: "" })}
+                className="text-sm font-semibold text-[#FF4F58] hover:underline"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Erro */}
       {erro && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+        <div className="mx-6 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
           {erro}
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="mb-6 flex gap-4 items-end">
-        {projetoAtual && (
-          <div className="px-3 py-2 bg-blue-50 border border-blue-300 rounded-lg">
-            <p className="text-xs text-blue-600 font-medium">
-              Projeto Ativo: <span className="font-bold">{projetoAtual.nome}</span>
-            </p>
+      {/* Loading */}
+      {carregando && tarefas.length === 0 ? (
+        <main className="grid min-h-[420px] place-items-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5B35F5] border-t-transparent" />
+            <p className="text-sm font-medium text-[#7E8DA6]">Carregando tarefas...</p>
           </div>
-        )}
-
-        {!projetoAtual && projetos.length > 0 && (
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Projeto
-            </label>
-            <select
-              value={filtroProjeto}
-              onChange={(e) => setFiltroProjeto(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="todos">Todos os projetos</option>
-              {projetos.map((proj: any) => (
-                <option key={proj.id} value={proj.id}>
-                  {proj.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {colunas.length > 0 && (
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Coluna
-            </label>
-            <select
-              value={filtroColuna}
-              onChange={(e) => setFiltroColuna(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="todas">Todas as colunas</option>
-              {colunas.map((col: any) => (
-                <option key={col.id} value={col.id}>
-                  {col.nome}
-                </option>
-              ))}
-              {tarefasSemColuna.length > 0 && (
-                <option value="sem_coluna">Sem coluna</option>
-              )}
-            </select>
-          </div>
-        )}
-      </div>
-
-      {/* Board */}
-      {tarefasFiltradas.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500 mb-4">
-            {projetoAtual 
-              ? "Nenhuma tarefa encontrada neste projeto" 
-              : "Nenhuma tarefa encontrada. Selecione um projeto na Dashboard para criar tarefas."}
-          </p>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Plus size={20} />
-            Criar primeira tarefa
-          </button>
-        </div>
+        </main>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {colunas.length === 0 ? (
-            // Se não há colunas, mostrar todas as tarefas em um grid
-            tarefasFiltradas.map((tarefa: Tarefa) => (
-              <div
-                key={tarefa.id}
-                onClick={() => {
-                  setTarefaSelecionada(tarefa);
-                  setEditModalOpen(true);
-                }}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md cursor-pointer transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900 flex-1">
-                    {tarefa.titulo}
-                  </h3>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded border ${
-                      prioridadeColors[tarefa.prioridade as "BAIXA" | "MEDIA" | "ALTA"]
-                    }`}
-                  >
-                    {prioridadeLabels[tarefa.prioridade]}
-                  </span>
-                </div>
-
-                {tarefa.descricao && (
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                    {tarefa.descricao}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {tarefa.responsavel && (
-                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold text-gray-700">
-                        {tarefa.responsavel.nome.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {tarefa.progresso}%
-                  </span>
-                </div>
-
-                <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-blue-600 h-1.5 rounded-full"
-                    style={{ width: `${tarefa.progresso}%` }}
-                  />
-                </div>
-              </div>
-            ))
-          ) : (
-            // Mostrar colunas
-            <>
-              {colunas.map((coluna: any) => {
-                const tarefasColuna = tarefasFiltradas.filter(
-                  (t: Tarefa) => t.coluna?.id === coluna.id
-                );
-
-                return (
-                  <div
-                    key={coluna.id}
-                    className="bg-gray-50 rounded-lg p-4 min-h-96"
-                  >
-                    <h2 className="font-semibold text-gray-900 mb-4">
-                      {coluna.nome} ({tarefasColuna.length})
-                    </h2>
-
-                    <div className="space-y-3">
-                      {tarefasColuna.map((tarefa: Tarefa) => (
-                        <div
-                          key={tarefa.id}
-                          onClick={() => {
-                            setTarefaSelecionada(tarefa);
-                            setEditModalOpen(true);
-                          }}
-                          className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-gray-900 text-sm flex-1">
-                              {tarefa.titulo}
-                            </h3>
-                            <span
-                              className={`text-xs font-semibold px-2 py-0.5 rounded border ${
-                                prioridadeColors[tarefa.prioridade as "BAIXA" | "MEDIA" | "ALTA"]
-                              }`}
-                            >
-                              {prioridadeLabels[tarefa.prioridade as "BAIXA" | "MEDIA" | "ALTA"]}
-                            </span>
-                          </div>
-
-                          {tarefa.descricao && (
-                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                              {tarefa.descricao}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1">
-                              {tarefa.responsavel && (
-                                <div
-                                  title={tarefa.responsavel.nome}
-                                  className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold text-gray-700"
-                                >
-                                  {tarefa.responsavel.nome
-                                    .charAt(0)
-                                    .toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {tarefa.progresso}%
-                            </span>
-                          </div>
-
-                          <div className="mt-2 w-full bg-gray-200 rounded-full h-1">
-                            <div
-                              className="bg-blue-600 h-1 rounded-full"
-                              style={{ width: `${tarefa.progresso}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Coluna de tarefas sem coluna */}
-              {tarefasSemColuna.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4 min-h-96">
-                  <h2 className="font-semibold text-gray-900 mb-4">
-                    Sem Coluna ({tarefasSemColuna.length})
-                  </h2>
-
-                  <div className="space-y-3">
-                    {tarefasSemColuna.map((tarefa) => (
-                      <div
-                        key={tarefa.id}
-                        onClick={() => {
-                          setTarefaSelecionada(tarefa);
-                          setEditModalOpen(true);
-                        }}
-                        className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-gray-900 text-sm flex-1">
-                            {tarefa.titulo}
-                          </h3>
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded border ${
-                              prioridadeColors[tarefa.prioridade]
-                            }`}
-                          >
-                            {prioridadeLabels[tarefa.prioridade]}
-                          </span>
-                        </div>
-
-                        {tarefa.descricao && (
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                            {tarefa.descricao}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            {tarefa.responsavel && (
-                              <div
-                                title={tarefa.responsavel.nome}
-                                className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-semibold text-gray-700"
-                              >
-                                {tarefa.responsavel.nome
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {tarefa.progresso}%
-                          </span>
-                        </div>
-
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-1">
-                          <div
-                            className="bg-blue-600 h-1 rounded-full"
-                            style={{ width: `${tarefa.progresso}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <main className="overflow-x-auto px-6 py-8">
+          {view === "kanban" && renderKanban()}
+          {view === "lista" && renderLista()}
+          {view === "grade" && renderGrade()}
+        </main>
       )}
 
-      {/* Modals */}
+      {/* Modais */}
       <CreateTaskModal
         isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={() => { setCreateModalOpen(false); setColunaInicialId(undefined); }}
         onSubmit={handleCriarTarefa}
-        colunas={colunas}
+        colunas={colunasParaModal}
+        membros={membrosDoProejto}
+        tagsExistentes={tagsDoProejto}
+        colunaInicialId={colunaInicialId}
       />
 
       <EditTaskModal
         isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSubmit={handleAtualizarTarefa}
+        onClose={() => { setEditModalOpen(false); setTarefaSelecionadaId(null); }}
+        onEdit={() => {}}
         onDelete={handleDeletarTarefa}
-        task={tarefaSelecionada || undefined}
+        task={tarefaSelecionada ?? undefined}
       />
 
-      {/* Toast Container */}
+      <CreateColumnModal
+        isOpen={columnModalOpen}
+        onClose={() => setColumnModalOpen(false)}
+        onSubmit={handleCriarColuna}
+      />
+
       <ToastContainer items={toast.toasts} onRemove={toast.remover} />
-    </main>
+    </div>
   );
 }

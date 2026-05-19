@@ -1,5 +1,5 @@
 import api from "@/services/api";
-import type { Projeto, CriarProjetoPayload, AtualizarProjetoPayload, Usuario } from "@/store/types";
+import type { ColunaKanban, Projeto, CriarProjetoPayload, AtualizarProjetoPayload, Usuario } from "@/store/types";
 
 export const projetoService = {
   listar: async (): Promise<Projeto[]> => {
@@ -53,4 +53,14 @@ export const projetoService = {
     const { data } = await api.get<Usuario[]>("/usuarios");
     return data;
   },
+
+  criarColuna: async (projetoId: string, nome: string): Promise<ColunaKanban> => {
+    const { data } = await api.post<ColunaKanban>(`/projetos/${projetoId}/colunas`, { nome });
+    return data;
+  },
+
+  deletarColuna: async (projetoId: string, colunaId: string): Promise<void> => {
+    await api.delete(`/projetos/${projetoId}/colunas/${colunaId}`);
+  },
 };
+
