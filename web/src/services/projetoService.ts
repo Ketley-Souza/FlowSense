@@ -62,5 +62,25 @@ export const projetoService = {
   deletarColuna: async (projetoId: string, colunaId: string): Promise<void> => {
     await api.delete(`/projetos/${projetoId}/colunas/${colunaId}`);
   },
+
+  //anexos do projeto
+  listarAnexos: async (projetoId: string) => {
+    const { data } = await api.get(`/projetos/${projetoId}/anexos`);
+    return data;
+  },
+
+  adicionarAnexo: async (projetoId: string, arquivo: File) => {
+    const formData = new FormData();
+    formData.append("file", arquivo);
+    const { data } = await api.post(`/projetos/${projetoId}/anexos`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  deletarAnexo: async (projetoId: string, anexoId: string): Promise<void> => {
+    await api.delete(`/projetos/${projetoId}/anexos/${anexoId}`);
+  },
 };
+
 

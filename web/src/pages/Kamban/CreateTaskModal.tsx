@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, ChevronDown, Tag as TagIcon } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { ProjetoMembro, Tag } from "@/types";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface SubtarefaLocal {
   titulo: string;
@@ -315,7 +316,6 @@ export function CreateTaskModal({
               <div className="flex flex-wrap gap-2">
                 {membros.map((m) => {
                   const selecionado = membrosSelecionados.includes(m.id_usuario);
-                  const inicial = m.usuario.nome.charAt(0).toUpperCase();
                   return (
                     <button
                       key={m.id_usuario}
@@ -328,9 +328,11 @@ export function CreateTaskModal({
                           : "border-[#DDE7F3] bg-white text-[#40506A] hover:border-[#5B35F5]/40",
                       ].join(" ")}
                     >
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#7480FF] text-[10px] font-bold text-white">
-                        {inicial}
-                      </span>
+                      <UserAvatar
+                        nome={m.usuario.nome}
+                        foto_url={(m.usuario as any).foto_url}
+                        size={24}
+                      />
                       <span className="max-w-[120px] truncate">{m.usuario.nome}</span>
                     </button>
                   );

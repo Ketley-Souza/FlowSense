@@ -136,7 +136,7 @@ export async function criarProjeto(
   if (payload.data_inicio && payload.data_fim) {
     const dataInicio = new Date(payload.data_inicio);
     const dataFim = new Date(payload.data_fim);
-    
+
     if (dataFim < dataInicio) {
       const error = new Error("Data final não pode ser anterior à data inicial.");
       (error as NodeJS.ErrnoException).code = "BAD_REQUEST";
@@ -240,7 +240,7 @@ export async function atualizarProjeto(
   if (payload.data_inicio && payload.data_fim) {
     const dataInicio = new Date(payload.data_inicio);
     const dataFim = new Date(payload.data_fim);
-    
+
     if (dataFim < dataInicio) {
       const error = new Error("Data final não pode ser anterior à data inicial.");
       (error as NodeJS.ErrnoException).code = "BAD_REQUEST";
@@ -462,3 +462,78 @@ export async function deletarColuna(
 
   await prisma.colunaKanban.delete({ where: { id: colunaId } });
 }
+
+// ============================================
+// ANEXOS DE PROJETO
+// ============================================
+
+export async function listarAnexosProjeto(
+  projetoId: string,
+  usuarioId: string
+) {
+  //verifica se usuário está no projeto
+  const membro = await prisma.projetoMembro.findUnique({
+    where: {
+      id_projeto_id_usuario: { id_projeto: projetoId, id_usuario: usuarioId },
+    },
+  });
+  if (!membro) {
+    const error = new Error("Você não tem acesso a este projeto.");
+    (error as NodeJS.ErrnoException).code = "FORBIDDEN";
+    throw error;
+  }
+
+  return prisma.anexoProjeto.findMany({
+    where: { id_projeto: projetoId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function adicionarAnexoProjeto(
+  projetoId: string,
+  usuarioId: string,
+  anexo: { nome: string; url: string; tipo: string; tamanho?: number }
+) {
+  const membro = await prisma.projetoMembro.findUnique({
+    where: {
+      id_projeto_id_usuario: { id_projeto: projetoId, id_usuario: usuarioId },
+    },
+  });
+  if (!membro) {
+    const error = new Error("Você não tem acesso a este projeto.");
+    (error as NodeJS.ErrnoException).code = "FORBIDDEN";
+    throw error;
+  }
+
+  return prisma.anexoProjeto.create({
+    data: {
+      nome: anexo.nome,
+      url: anexo.url,
+      tipo: anexo.tipo,
+      tamanho: anexo.tamanho,
+      id_projeto: projetoId,
+    },
+  });
+}
+
+export async function deletarAnexoProjeto(
+  projetoId: string,
+  anexoId: string,
+  usuarioId: string
+) {
+  await verificarGerenteProjeto(projetoId, usuarioId);
+
+  const anexo = await prisma.anexoProjeto.findFirst({
+    where: { id: anexoId, id_projeto: projetoId },
+  });
+
+  if (!anexo) {
+    const error = new Error("Anexo não encontrado.");
+    (error as NodeJS.ErrnoException).code = "NOT_FOUND";
+    throw error;
+  }
+
+  await prisma.anexoProjeto.delete({ where: { id: anexoId } });
+  return { url: anexo.url };
+}
+

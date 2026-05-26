@@ -141,6 +141,7 @@ model Projeto {
   colunas ColunaKanban[]
   tarefas Tarefa[]
   tags    Tag[]
+  anexos  AnexoProjeto[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -157,6 +158,19 @@ model ProjetoMembro {
   createdAt DateTime @default(now())
 
   @@id([id_projeto, id_usuario])
+}
+
+model AnexoProjeto {
+  id         String @id @default(uuid())
+  nome       String
+  url        String
+  tipo       String
+  tamanho    Int?
+  id_projeto String
+
+  projeto Projeto @relation(fields: [id_projeto], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 model ColunaKanban {

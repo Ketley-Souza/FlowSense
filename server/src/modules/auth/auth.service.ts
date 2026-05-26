@@ -14,6 +14,7 @@ const registrarSchema = z.object({
     .min(3, "Login deve ter ao menos 3 caracteres.")
     .regex(/^[a-zA-Z0-9_]+$/, "Login só pode conter letras, números e _."),
   senha: z.string().min(6, "Senha deve ter ao menos 6 caracteres."),
+  foto_url: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -38,7 +39,7 @@ const ativarContaSchema = z.object({
 //serviço
 
 export async function registrar(data: unknown) {
-  const { nome, email, login, senha } = registrarSchema.parse(data);
+  const { nome, email, login, senha, foto_url } = registrarSchema.parse(data);
   const usuarioExistente = await prisma.usuario.findFirst({
     where: { OR: [{ email }, { login }] },
     select: { email: true, login: true },
@@ -59,6 +60,7 @@ export async function registrar(data: unknown) {
       email, 
       login, 
       senha: senhaHash,
+      foto_url: foto_url ?? null,
       status: "ATIVO",
     },
     select: {

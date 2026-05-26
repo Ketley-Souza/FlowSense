@@ -69,6 +69,16 @@ export interface ColunaKanban {
   id_projeto?: string;
 }
 
+export interface AnexoProjeto {
+  id: string;
+  nome: string;
+  url: string;
+  tipo: string;
+  tamanho?: number | null;
+  id_projeto: string;
+  createdAt: string;
+}
+
 export interface Projeto {
   id: string;
   nome: string;
@@ -81,6 +91,7 @@ export interface Projeto {
   colunas?: ColunaKanban[];
   tags?: Tag[];
   tarefas?: Tarefa[];
+  anexos?: AnexoProjeto[];
   _count?: {
     tarefas: number;
     colunas: number;

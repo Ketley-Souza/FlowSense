@@ -13,6 +13,7 @@ import { dashboardService } from "@/services/dashboardService";
 import { StatCard } from "@/components/ui/StatCard";
 import { SkeletonStat } from "@/components/ui/SkeletonCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import type { DashboardData } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { gerarCorProjetoIndexada } from "@/utils/colors";
@@ -56,14 +57,13 @@ function AvatarStack({ membros }: { membros: Array<{ id: string; nome: string; f
   return (
     <div className="flex -space-x-2">
       {membros.slice(0, 4).map((m) => (
-        <div
+        <UserAvatar
           key={m.id}
-          title={m.nome}
-          className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white"
-          style={{ backgroundColor: `hsl(${m.id.charCodeAt(0) * 17 % 360}, 65%, 55%)` }}
-        >
-          {getInitials(m.nome)}
-        </div>
+          nome={m.nome}
+          foto_url={m.foto_url}
+          size={28}
+          className="border-2 border-white"
+        />
       ))}
       {membros.length > 4 && (
         <div className="w-7 h-7 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
@@ -436,12 +436,12 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {data.atividadesRecentes.slice(0, 7).map((a) => (
                 <div key={a.id} className="flex items-start gap-3 group">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                    style={{ backgroundColor: `hsl(${a.usuario.id.charCodeAt(0) * 17 % 360}, 65%, 55%)` }}
-                  >
-                    {getInitials(a.usuario.nome)}
-                  </div>
+                  <UserAvatar
+                    nome={a.usuario.nome}
+                    foto_url={(a.usuario as any).foto_url}
+                    size={32}
+                    className="shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-700">
                       <span className="font-semibold">{a.usuario.nome}</span>

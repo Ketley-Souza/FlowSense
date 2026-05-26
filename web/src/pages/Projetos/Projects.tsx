@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Folder, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Edit2, Folder, AlertTriangle, Paperclip } from "lucide-react";
 import { BaseModal } from "@/components/Modal";
 import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { CreateProjectModal } from "./CreateProjectModal";
@@ -8,6 +8,9 @@ import { useProjetosStore } from "@/store/useProjetosStore";
 import { useToastGlobal } from "@/contexts/ToastContext";
 import { gerarCorProjetoIndexada } from "@/utils/colors";
 import { formatarData, projetoAtrasado, faltaDoisDias } from "@/utils/dates";
+import { projetoService } from "@/services/projetoService";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { ProjectAttachmentsModal } from "./ProjectAttachmentsModal";
 import type { Projeto, ProjetoMembro } from "@/types";
 
 export default function Projects() {
@@ -29,6 +32,7 @@ export default function Projects() {
   const [projetoParaDeletar, setProjetoParaDeletar] = useState<string | null>(null);
   const [projetoParaEditar, setProjetoParaEditar] = useState<Projeto | null>(null);
   const [deletando, setDeletando] = useState(false);
+  const [anexosModalProjeto, setAnexosModalProjeto] = useState<Projeto | null>(null);
 
   useEffect(() => {
     listar();
@@ -41,10 +45,20 @@ export default function Projects() {
     data_inicio?: string;
     data_fim?: string;
     membros?: Array<{ id_usuario: string; cargo: "GERENTE" | "MEMBRO" }>;
+    anexos?: File[];
   }) {
     try {
-      await criar(payload);
+      const projeto = await criar(payload);
       setCreateModalOpen(false);
+
+      //upload de anexos
+      if (payload.anexos && payload.anexos.length > 0 && projeto?.id) {
+        const uploads = payload.anexos.map((f) =>
+          projetoService.adicionarAnexo(projeto.id, f).catch(() => null)
+        );
+        await Promise.all(uploads);
+      }
+
       toast.sucesso("Projeto criado com sucesso!");
     } catch (err) {
       toast.erro(err instanceof Error ? err.message : "Erro ao criar projeto");
@@ -189,6 +203,14 @@ export default function Projects() {
                   </div>
 
                   <div className="flex gap-1 shrink-0">
+                    {/* Botão Anexos */}
+                    <button
+                      onClick={() => setAnexosModalProjeto(projeto)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors"
+                      title="Anexos do projeto"
+                    >
+                      <Paperclip size={14} />
+                    </button>
                     <button
                       onClick={() => abrirEditModal(projeto)}
                       className="p-1.5 text-gray-400 hover:text-gray-800 transition-colors"
@@ -209,11 +231,10 @@ export default function Projects() {
                 {/* ALERTAS DE PRAZO */}
                 {(estaAtrasado || falta2Dias) && (
                   <div
-                    className={`mb-3 pl-1 flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-lg ${
-                      estaAtrasado
+                    className={`mb-3 pl-1 flex items-center gap-2 text-xs font-medium px-2 py-1.5 rounded-lg ${estaAtrasado
                         ? "bg-red-100 text-red-700"
                         : "bg-yellow-100 text-yellow-700"
-                    }`}
+                      }`}
                   >
                     <AlertTriangle size={14} />
                     {estaAtrasado ? "Projeto atrasado" : "Prazo em 2 dias"}
@@ -265,23 +286,13 @@ export default function Projects() {
                     <div className="flex -space-x-2">
                       {projeto.membros.slice(0, 3).map((membro: ProjetoMembro) =>
                         membro.usuario && (
-                          <div
+                          <UserAvatar
                             key={membro.id_usuario}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white border-2 border-white"
-                            style={{
-                              backgroundColor: `hsl(${membro.id_usuario
-                                .split("")
-                                .reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360}, 70%, 60%)`,
-                            }}
-                            title={membro.usuario.nome}
-                          >
-                            {membro.usuario.nome
-                              .split(" ")
-                              .slice(0, 2)
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()}
-                          </div>
+                            nome={membro.usuario.nome}
+                            foto_url={membro.usuario.foto_url}
+                            size={28}
+                            className="border-2 border-white"
+                          />
                         )
                       )}
                       {projeto.membros.length > 3 && (
@@ -329,6 +340,15 @@ export default function Projects() {
         confirmLabel="Excluir projeto"
         loading={deletando}
       />
+      {/* MODAL ANEXOS DO PROJETO */}
+      {anexosModalProjeto && (
+        <ProjectAttachmentsModal
+          isOpen={true}
+          onClose={() => setAnexosModalProjeto(null)}
+          projetoId={anexosModalProjeto.id}
+          projetoNome={anexosModalProjeto.nome}
+        />
+      )}
     </div>
   );
 }

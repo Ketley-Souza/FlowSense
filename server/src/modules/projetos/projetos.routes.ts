@@ -12,7 +12,11 @@ import {
   atualizarCargoMembroProjeto,
   criarColuna,
   deletarColuna,
+  listarAnexosProjeto,
+  adicionarAnexoProjeto,
+  deletarAnexoProjeto,
 } from "./projetos.service";
+import { salvarAnexoProjeto, deletarArquivo } from "../../lib/upload";
 
 function handleServiceError(
   err: unknown,
@@ -254,6 +258,81 @@ export async function projetosRoutes(
           request.params.colunaId,
           request.user.sub
         );
+        return reply.code(204).send();
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // ============================================
+  // ANEXOS DE PROJETO
+  // ============================================
+
+  // GET /projetos/:id/anexos
+  fastify.get(
+    "/projetos/:id/anexos",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const anexos = await listarAnexosProjeto(
+          request.params.id,
+          request.user.sub
+        );
+        return reply.send(anexos);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // POST /projetos/:id/anexos  (multipart)
+  fastify.post(
+    "/projetos/:id/anexos",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const file = await request.file();
+        if (!file) {
+          return reply.code(400).send({
+            statusCode: 400,
+            error: "Bad Request",
+            message: "Nenhum arquivo enviado.",
+          });
+        }
+
+        const { url, nome, tipo, tamanho } = await salvarAnexoProjeto(file);
+        const anexo = await adicionarAnexoProjeto(
+          request.params.id,
+          request.user.sub,
+          { url, nome, tipo, tamanho }
+        );
+        return reply.code(201).send(anexo);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // DELETE /projetos/:id/anexos/:anexoId
+  fastify.delete(
+    "/projetos/:id/anexos/:anexoId",
+    async (
+      request: FastifyRequest<{ Params: { id: string; anexoId: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const { url } = await deletarAnexoProjeto(
+          request.params.id,
+          request.params.anexoId,
+          request.user.sub
+        );
+        //deletar arquivo
+        deletarArquivo(url).catch(() => { });
         return reply.code(204).send();
       } catch (err) {
         return handleServiceError(err, reply, fastify);

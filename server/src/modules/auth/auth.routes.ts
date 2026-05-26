@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { autenticar, registrar, ativarConta, obterDetalhesConvite } from "./auth.service";
+import { salvarAvatar } from "../../lib/upload";
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -8,8 +9,25 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     "/auth/register",
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        fastify.log.info({ body: request.body }, "Register request received");
-        const usuario = await registrar(request.body as unknown);
+        // Parsear multipart (campos de texto + arquivo opcional)
+        const parts = request.parts();
+        const fields: Record<string, string> = {};
+        let foto_url: string | undefined;
+
+        for await (const part of parts) {
+          if (part.type === "file") {
+            if (part.fieldname === "foto") {
+              foto_url = await salvarAvatar(part);
+            } else {
+              await part.toBuffer(); // consumir para não vazar
+            }
+          } else {
+            fields[part.fieldname] = part.value as string;
+          }
+        }
+
+        fastify.log.info({ fields }, "Register request received");
+        const usuario = await registrar({ ...fields, foto_url });
         return reply.code(201).send({
           message: "Usuário criado com sucesso.",
           usuario,
@@ -34,6 +52,14 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
           return reply.code(409).send({
             statusCode: 409,
             error: "Conflict",
+            message: error.message,
+          });
+        }
+
+        if (error.code === "BAD_REQUEST") {
+          return reply.code(400).send({
+            statusCode: 400,
+            error: "Bad Request",
             message: error.message,
           });
         }

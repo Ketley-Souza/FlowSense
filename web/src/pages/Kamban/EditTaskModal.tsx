@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square, Calendar } from "lucide-react";
+import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square, Calendar, Download } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { Tarefa, Subtarefa, Tag } from "@/types";
 import { useTarefasStore } from "@/store/useTarefasStore";
 import { useToast } from "@/components/Toast";
 import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { calcularProgressoTarefa, formatarDataBR } from "@/utils/kanban";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 type Aba = "detalhes" | "comentarios" | "anexos" | "historico";
 
@@ -254,9 +255,11 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
                       ...(task.membros?.filter((m) => m.usuario.id !== task.responsavel?.id).map((m) => ({ usuario: m.usuario, isResponsavel: false })) ?? []),
                     ].map(({ usuario, isResponsavel }) => (
                       <div key={usuario.id} className="flex items-center gap-2">
-                        <div className="grid h-8 w-8 place-items-center rounded-full bg-[#7480FF] text-xs font-bold text-white">
-                          {usuario.nome.charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar
+                          nome={usuario.nome}
+                          foto_url={(usuario as any).foto_url}
+                          size={32}
+                        />
                         <span className="text-sm text-[#40506A]">
                           {usuario.nome}
                           {isResponsavel && <span className="ml-1 text-[10px] text-[#9EB2CC]">(resp.)</span>}
@@ -325,9 +328,12 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
                 <div className="space-y-4">
                   {task.comentarios!.map((c) => (
                     <div key={c.id} className="flex gap-3">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#7480FF] text-xs font-bold text-white">
-                        {(c.usuario?.nome ?? "?").charAt(0).toUpperCase()}
-                      </div>
+                      <UserAvatar
+                        nome={c.usuario?.nome ?? "Usuário"}
+                        foto_url={(c.usuario as any)?.foto_url}
+                        size={32}
+                        className="shrink-0"
+                      />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-[#202A3D]">{c.usuario?.nome ?? "Usuário"}</span>

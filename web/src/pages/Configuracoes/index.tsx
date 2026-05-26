@@ -1,6 +1,11 @@
-import React, { useState } from "react";
-import { Bell, CircleUserRound, Shield } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Bell, CircleUserRound, Shield, Camera, User, Loader2 } from "lucide-react";
 import { useToastGlobal } from "@/contexts/ToastContext";
+import { atualizarAvatar, atualizarPerfil, sincronizarUsuarioLocal } from "@/services/usuarioService";
+import { getUsuarioLogado } from "@/services/auth";
+import type { Usuario } from "@/types";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -8,14 +13,12 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       type="button"
       onClick={onChange}
       aria-pressed={checked}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-        checked ? "bg-indigo-600" : "bg-slate-300"
-      }`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${checked ? "bg-indigo-600" : "bg-slate-300"
+        }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0.5"
-        }`}
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
+          }`}
       />
     </button>
   );
@@ -43,18 +46,100 @@ function SectionCard({
 
 export default function SettingsPage() {
   const toast = useToastGlobal();
+
+  // Dados do usuário
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+
+  // Avatar
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadandoAvatar, setUploadandoAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Notificações (UI apenas — sem persistência ainda)
   const [emailNotifs, setEmailNotifs] = useState(false);
   const [pushNotifs, setPushNotifs] = useState(false);
   const [taskUpdates, setTaskUpdates] = useState(false);
   const [comments, setComments] = useState(false);
 
-  const handleSave = () => {
-    toast.sucesso("Configurações salvas com sucesso!");
-  };
+  // Carregar usuário do localStorage ao montar
+  useEffect(() => {
+    const u = getUsuarioLogado();
+    if (u) {
+      setUsuario(u);
+      setNome(u.nome);
+      setEmail(u.email);
+    }
+  }, []);
 
-  const handleUploadPhoto = () => {
-    toast.info("Funcionalidade de upload em desenvolvimento.");
-  };
+  // Montar URL do avatar
+  function resolverAvatarUrl(url?: string | null): string | null {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return `${API_BASE}${url}`;
+  }
+
+  const avatarSrc = avatarPreview ?? resolverAvatarUrl(usuario?.foto_url);
+
+  // ── Avatar ──────────────────────────────────────────────
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.erro("Selecione uma imagem válida (JPEG, PNG, GIF ou WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.erro("A imagem deve ter no máximo 5 MB.");
+      return;
+    }
+
+    // Preview local imediato
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload ao servidor
+    setUploadandoAvatar(true);
+    try {
+      const usuarioAtualizado = await atualizarAvatar(file);
+      sincronizarUsuarioLocal(usuarioAtualizado);
+      setUsuario(usuarioAtualizado);
+      toast.sucesso("Foto de perfil atualizada!");
+    } catch {
+      toast.erro("Erro ao enviar foto. Tente novamente.");
+      setAvatarPreview(null); // reverter preview
+    } finally {
+      setUploadandoAvatar(false);
+      // Reset input para permitir reselecionar o mesmo arquivo
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  }
+
+  // ── Perfil (nome / email) ────────────────────────────────
+  async function handleSalvarPerfil() {
+    if (!nome.trim()) {
+      toast.erro("O nome não pode ficar vazio.");
+      return;
+    }
+    setSalvandoPerfil(true);
+    try {
+      const usuarioAtualizado = await atualizarPerfil({ nome: nome.trim(), email: email.trim() });
+      sincronizarUsuarioLocal(usuarioAtualizado);
+      setUsuario(usuarioAtualizado);
+      toast.sucesso("Perfil atualizado com sucesso!");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Erro ao salvar. Tente novamente.";
+      toast.erro(msg);
+    } finally {
+      setSalvandoPerfil(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -65,16 +150,56 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-5">
+          {/* ── PERFIL ── */}
           <SectionCard icon={<CircleUserRound size={18} />} title="Perfil">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              {/* Avatar */}
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-slate-200 ring-4 ring-slate-50" />
+                <div
+                  className="relative h-16 w-16 cursor-pointer group"
+                  onClick={() => !uploadandoAvatar && avatarInputRef.current?.click()}
+                >
+                  <div className="h-16 w-16 rounded-full overflow-hidden bg-slate-200 ring-4 ring-slate-50">
+                    {avatarSrc ? (
+                      <img
+                        src={avatarSrc}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <User size={24} className="text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Overlay */}
+                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    {uploadandoAvatar ? (
+                      <Loader2 size={18} className="text-white animate-spin" />
+                    ) : (
+                      <Camera size={18} className="text-white" />
+                    )}
+                  </div>
+                </div>
+
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  disabled={uploadandoAvatar}
+                />
+
                 <button
                   type="button"
-                  onClick={handleUploadPhoto}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadandoAvatar}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Alterar foto
+                  {uploadandoAvatar && <Loader2 size={14} className="animate-spin" />}
+                  {uploadandoAvatar ? "Enviando..." : "Alterar foto"}
                 </button>
               </div>
             </div>
@@ -84,7 +209,9 @@ export default function SettingsPage() {
                 <span className="mb-2 block text-sm font-medium text-slate-600">Nome</span>
                 <input
                   type="text"
-                  placeholder=""
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Seu nome completo"
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
               </label>
@@ -92,13 +219,16 @@ export default function SettingsPage() {
                 <span className="mb-2 block text-sm font-medium text-slate-600">Email</span>
                 <input
                   type="email"
-                  placeholder=""
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome@email.com"
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
               </label>
             </div>
           </SectionCard>
 
+          {/* ── NOTIFICAÇÕES ── */}
           <SectionCard icon={<Bell size={18} />} title="Notificações">
             <div className="space-y-4">
               {[
@@ -121,6 +251,7 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
+          {/* ── SEGURANÇA ── */}
           <SectionCard icon={<Shield size={18} />} title="Segurança">
             <div className="grid gap-4">
               <label className="block">
@@ -142,13 +273,16 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
+          {/* ── BOTÃO SALVAR ── */}
           <div className="flex justify-end pb-4">
             <button
               type="button"
-              onClick={handleSave}
-              className="inline-flex h-11 items-center rounded-xl bg-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.99]"
+              onClick={handleSalvarPerfil}
+              disabled={salvandoPerfil}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Salvar Configurações
+              {salvandoPerfil && <Loader2 size={16} className="animate-spin" />}
+              {salvandoPerfil ? "Salvando..." : "Salvar Configurações"}
             </button>
           </div>
         </div>

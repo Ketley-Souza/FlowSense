@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BaseModal } from "@/components/Modal";
 import { useEquipesStore } from "@/store/useEquipesStore";
-import { ChevronDown, AlertCircle } from "lucide-react";
+import { ChevronDown, AlertCircle, Paperclip, X, FileText, Image, File } from "lucide-react";
 import { inputParaIso } from "@/utils/dates";
 import type { Usuario, Equipe, UsuarioEquipe } from "@/types";
 
@@ -22,6 +22,7 @@ interface CreateProjectModalProps {
     data_inicio?: string;
     data_fim?: string;
     membros?: MembroProjeto[];
+    anexos?: File[];
   }) => Promise<void>;
 }
 
@@ -45,6 +46,8 @@ export function CreateProjectModal({
   const [carregando, setCarregando] = useState(false);
   const [membrosAdicionados, setMembrosAdicionados] = useState<MembroProjeto[]>([]);
   const [mostrarListaMembros, setMostrarListaMembros] = useState(false);
+  const [anexos, setAnexos] = useState<File[]>([]);
+  const anexoInputRef = useRef<HTMLInputElement>(null);
 
   function resetForm() {
     setNome("");
@@ -54,6 +57,7 @@ export function CreateProjectModal({
     setDataFim("");
     setMembrosAdicionados([]);
     setMostrarListaMembros(false);
+    setAnexos([]);
   }
 
   useEffect(() => {
@@ -96,7 +100,6 @@ export function CreateProjectModal({
     setCarregando(true);
 
     try {
-      // Remover duplicatas dos membros
       const membrosUnicos = Array.from(
         new Map(
           membrosAdicionados.map((m) => [m.id_usuario, m])
@@ -110,6 +113,7 @@ export function CreateProjectModal({
         data_inicio: inputParaIso(dataInicio),
         data_fim: inputParaIso(dataFim),
         membros: membrosUnicos.length > 0 ? membrosUnicos : undefined,
+        anexos: anexos.length > 0 ? anexos : undefined,
       });
 
       resetForm();
@@ -117,6 +121,36 @@ export function CreateProjectModal({
     } finally {
       setCarregando(false);
     }
+  }
+
+  function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    setAnexos((prev) => {
+      const todos = [...prev, ...files];
+      //remover dupicatas
+      const unicos = todos.filter(
+        (f, i, arr) => arr.findIndex((x) => x.name === f.name) === i
+      );
+      return unicos;
+    });
+    //input pra reset
+    if (anexoInputRef.current) anexoInputRef.current.value = "";
+  }
+
+  function removerAnexo(nome: string) {
+    setAnexos((prev) => prev.filter((f) => f.name !== nome));
+  }
+
+  function iconeAnexo(tipo: string) {
+    if (tipo.startsWith("image/")) return <Image size={14} className="text-blue-500 shrink-0" />;
+    if (tipo === "application/pdf") return <FileText size={14} className="text-red-500 shrink-0" />;
+    return <File size={14} className="text-slate-400 shrink-0" />;
+  }
+
+  function tamanhoLegivel(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   return (
@@ -243,16 +277,14 @@ export function CreateProjectModal({
                 >
                   <span className="text-sm text-gray-700">
                     {membrosAdicionados.length > 0
-                      ? `${membrosAdicionados.length} membro${
-                          membrosAdicionados.length !== 1 ? "s" : ""
-                        } adicionado${membrosAdicionados.length !== 1 ? "s" : ""}`
+                      ? `${membrosAdicionados.length} membro${membrosAdicionados.length !== 1 ? "s" : ""
+                      } adicionado${membrosAdicionados.length !== 1 ? "s" : ""}`
                       : "Selecione membros da equipe..."}
                   </span>
                   <ChevronDown
                     size={18}
-                    className={`transition-transform ${
-                      mostrarListaMembros ? "rotate-180" : ""
-                    }`}
+                    className={`transition-transform ${mostrarListaMembros ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
 
@@ -261,9 +293,8 @@ export function CreateProjectModal({
                     {usuarios.map((usuario: Usuario) => (
                       <div
                         key={usuario.id}
-                        className={`px-3 py-2 border-b border-gray-100 flex items-center gap-2 ${
-                          usuarioJaAdicionado(usuario.id) ? "bg-blue-50" : "hover:bg-gray-50"
-                        }`}
+                        className={`px-3 py-2 border-b border-gray-100 flex items-center gap-2 ${usuarioJaAdicionado(usuario.id) ? "bg-blue-50" : "hover:bg-gray-50"
+                          }`}
                       >
                         <input
                           type="checkbox"
@@ -321,6 +352,52 @@ export function CreateProjectModal({
                 </div>
               )}
             </>
+          )}
+        </div>
+
+        {/* ── ANEXOS ── */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Anexos (opcional)
+          </label>
+
+          <button
+            type="button"
+            onClick={() => anexoInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors w-full justify-center"
+          >
+            <Paperclip size={15} />
+            Adicionar arquivo(s)
+          </button>
+
+          <input
+            ref={anexoInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleAnexoChange}
+          />
+
+          {anexos.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {anexos.map((f) => (
+                <li
+                  key={f.name}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                >
+                  {iconeAnexo(f.type)}
+                  <span className="flex-1 truncate text-slate-700">{f.name}</span>
+                  <span className="text-slate-400 shrink-0">{tamanhoLegivel(f.size)}</span>
+                  <button
+                    type="button"
+                    onClick={() => removerAnexo(f.name)}
+                    className="text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </form>

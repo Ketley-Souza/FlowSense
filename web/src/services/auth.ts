@@ -26,6 +26,16 @@ export async function registrar(payload: {
   return data;
 }
 
+//formdata pra upload
+export async function registrarComFormData(
+  formData: FormData
+): Promise<RegisterResponse> {
+  const { data } = await api.post<RegisterResponse>("/auth/register", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export function logout(): void {
   localStorage.removeItem("flowsense_token");
   localStorage.removeItem("flowsense_user");

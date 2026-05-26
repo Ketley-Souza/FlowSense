@@ -1,7 +1,10 @@
 import "dotenv/config";
+import path from "path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
+import multipart from "@fastify/multipart";
+import staticFiles from "@fastify/static";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { tarefasRoutes } from "./modules/tarefas/tarefas.routes";
 import { projetosRoutes } from "./modules/projetos/projetos.routes";
@@ -33,6 +36,17 @@ async function bootstrap() {
     secret: process.env["JWT_SECRET"] ?? "flowsense_fallback_secret",
   });
 
+  await fastify.register(multipart, {
+    limits: {
+      fileSize: 20 * 1024 * 1024, //limite de tamanho
+    },
+  });
+
+  await fastify.register(staticFiles, {
+    root: path.join(process.cwd(), "uploads"),
+    prefix: "/uploads/",
+    decorateReply: false,
+  });
 
   await fastify.register(authRoutes);
   await fastify.register(tarefasRoutes);

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { SidebarItem } from "@/components/Sidebar/sidebarItem";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 import { useSidebar } from "@/contexts/SidebarContext";
 import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
@@ -198,15 +199,12 @@ export function Sidebar() {
             `}
           >
             {/* AVATAR */}
-            <div
-              className="
-                flex h-8 w-8 shrink-0 items-center justify-center
-                rounded-full bg-indigo-500
-                text-xs font-semibold text-white
-              "
-            >
-              {usuario ? getInitials(usuario.nome) : "U"}
-            </div>
+            <UserAvatar
+              nome={usuario?.nome ?? "Usuário"}
+              foto_url={usuario?.foto_url}
+              size={32}
+              className="shrink-0"
+            />
 
             {/* USER INFO */}
             <div
