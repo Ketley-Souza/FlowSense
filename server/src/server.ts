@@ -11,6 +11,8 @@ import { projetosRoutes } from "./modules/projetos/projetos.routes";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes";
 import { equipesRoutes } from "./modules/equipes/equipes.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
+import { notificacoesRoutes } from "./modules/notificacoes/notificacoes.routes";
+import { inicializarAgendador } from "./agendador";
 
 const fastify = Fastify({
   logger: {
@@ -54,6 +56,7 @@ async function bootstrap() {
   await fastify.register(usuariosRoutes);
   await fastify.register(equipesRoutes);
   await fastify.register(dashboardRoutes);
+  await fastify.register(notificacoesRoutes);
 
   fastify.get("/health", async () => ({
     status: "ok",
@@ -69,6 +72,9 @@ async function bootstrap() {
 
   console.log(`\n rodando em http://localhost:${PORT}`);
   console.log(`conferir integridade em http://localhost:${PORT}/health\n`);
+
+  // Inicializar jobs agendados após o servidor estar online
+  inicializarAgendador();
 }
 
 bootstrap().catch((err) => {

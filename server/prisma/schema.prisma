@@ -24,6 +24,17 @@ enum StatusNotificacao {
   LIDA
 }
 
+enum TipoNotificacao {
+  MEMBRO_ADICIONADO_PROJETO
+  TAREFA_ATRIBUIDA
+  PROJETO_ATUALIZADO
+  COMENTARIO_ADICIONADO
+  PRAZO_24H
+  PRAZO_48H
+  TAREFA_MOVIDA
+  GERAL
+}
+
 enum Perfil {
   ADMIN
   GERENTE
@@ -136,12 +147,13 @@ model Projeto {
   cor          String?    @default("#3B82F6")
   equipe_id    String?
 
-  equipe  Equipe?           @relation(fields: [equipe_id], references: [id], onDelete: Cascade)
-  membros ProjetoMembro[]
-  colunas ColunaKanban[]
-  tarefas Tarefa[]
-  tags    Tag[]
-  anexos  AnexoProjeto[]
+  equipe        Equipe?           @relation(fields: [equipe_id], references: [id], onDelete: Cascade)
+  membros       ProjetoMembro[]
+  colunas       ColunaKanban[]
+  tarefas       Tarefa[]
+  tags          Tag[]
+  anexos        AnexoProjeto[]
+  notificacoes  Notificacao[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -274,6 +286,7 @@ model Anexo {
   nome      String
   url       String
   tipo      String // ex: "image/png", "application/pdf", "video/mp4"
+  tamanho   Int?
   id_tarefa String
 
   tarefa Tarefa @relation(fields: [id_tarefa], references: [id], onDelete: Cascade)
@@ -299,13 +312,16 @@ model Notificacao {
   id         String            @id @default(uuid())
   mensagem   String
   status     StatusNotificacao @default(NAO_LIDA)
+  tipo       TipoNotificacao   @default(GERAL)
   id_usuario String
+  tarefaId   String?
+  projetoId  String?
 
-  usuario Usuario @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
+  usuario Usuario  @relation(fields: [id_usuario], references: [id], onDelete: Cascade)
+  tarefa  Tarefa?  @relation(fields: [tarefaId], references: [id], onDelete: SetNull)
+  projeto Projeto? @relation(fields: [projetoId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-  tarefa    Tarefa?  @relation(fields: [tarefaId], references: [id])
-  tarefaId  String?
 }
 
 model HistoricoTarefa {

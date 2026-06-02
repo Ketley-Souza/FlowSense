@@ -54,6 +54,11 @@ export const projetoService = {
     return data;
   },
 
+  listarUsuariosParaAdicionar: async (): Promise<Usuario[]> => {
+    const { data } = await api.get<Usuario[]>("/projetos/usuarios-para-adicionar");
+    return data;
+  },
+
   criarColuna: async (projetoId: string, nome: string): Promise<ColunaKanban> => {
     const { data } = await api.post<ColunaKanban>(`/projetos/${projetoId}/colunas`, { nome });
     return data;

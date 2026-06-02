@@ -172,6 +172,7 @@ export interface Anexo {
   nome: string;
   url: string;
   tipo: string;
+  tamanho?: number | null;
   id_tarefa: string;
   createdAt: string;
   updatedAt?: string;
@@ -222,12 +223,12 @@ export interface CriarTarefaPayload {
   titulo: string;
   descricao?: string;
   prioridade?: "BAIXA" | "MEDIA" | "ALTA";
-  data_inicio?: string;
-  data_fim?: string;
-  prazo?: string;
-  id_coluna?: string;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  prazo?: string | null;
+  id_coluna?: string | null;
   id_projeto: string;
-  id_responsavel?: string;
+  id_responsavel?: string | null;
   id_membros?: string[];
   subtarefas?: Array<{
     titulo: string;
@@ -246,11 +247,11 @@ export interface AtualizarTarefaPayload {
   descricao?: string;
   prioridade?: "BAIXA" | "MEDIA" | "ALTA";
   progresso?: number;
-  data_inicio?: string;
-  data_fim?: string;
-  prazo?: string;
-  id_responsavel?: string;
-  id_coluna?: string;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  prazo?: string | null;
+  id_responsavel?: string | null;
+  id_coluna?: string | null;
   id_membros?: string[];
   subtarefas?: Array<{
     id?: string;
@@ -276,8 +277,37 @@ export interface CriarAnexoPayload {
 }
 
 // ============================================
-// API RESPONSES
+// NOTIFICAÇÕES DO SISTEMA
 // ============================================
+export type TipoNotificacao =
+  | "MEMBRO_ADICIONADO_PROJETO"
+  | "TAREFA_ATRIBUIDA"
+  | "PROJETO_ATUALIZADO"
+  | "COMENTARIO_ADICIONADO"
+  | "PRAZO_24H"
+  | "PRAZO_48H"
+  | "TAREFA_MOVIDA"
+  | "GERAL";
+
+export type StatusNotificacao = "NAO_LIDA" | "LIDA";
+
+export interface NotificacaoSistema {
+  id: string;
+  mensagem: string;
+  status: StatusNotificacao;
+  tipo: TipoNotificacao;
+  id_usuario: string;
+  tarefaId?: string | null;
+  projetoId?: string | null;
+  createdAt: string;
+  tarefa?: { id: string; titulo: string; id_projeto: string } | null;
+  projeto?: { id: string; nome: string } | null;
+}
+
+export interface ListarNotificacoesResponse {
+  notificacoes: NotificacaoSistema[];
+  totalNaoLidas: number;
+}
 
 // ============================================
 // API RESPONSES

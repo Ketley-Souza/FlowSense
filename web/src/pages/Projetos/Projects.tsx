@@ -324,7 +324,7 @@ export default function Projects() {
           setProjetoParaEditar(null);
         }}
         onSubmit={handleEditarProjeto}
-        project={projetoParaEditar || undefined}
+        project={projetos.find((p) => p.id === projetoParaEditar?.id) || undefined}
       />
 
       {/* MODAL DELETAR PROJETO — ConfirmDeleteModal em vez de alert/confirm */}

@@ -15,6 +15,7 @@ import {
   listarAnexosProjeto,
   adicionarAnexoProjeto,
   deletarAnexoProjeto,
+  listarUsuariosParaAdicionar,
 } from "./projetos.service";
 import { salvarAnexoProjeto, deletarArquivo } from "../../lib/upload";
 
@@ -81,6 +82,18 @@ export async function projetosRoutes(
   fastify: FastifyInstance
 ): Promise<void> {
   fastify.addHook("preHandler", autenticarMiddleware);
+
+  fastify.get(
+    "/projetos/usuarios-para-adicionar",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const usuarios = await listarUsuariosParaAdicionar();
+        return reply.send(usuarios);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
 
   fastify.get(
     "/projetos",

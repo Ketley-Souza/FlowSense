@@ -1,6 +1,7 @@
 import { Prisma, Prioridade } from "@prisma/client";
 import { z } from "zod";
 import prisma from "../../lib/prisma";
+import { notificarMembros, notificarTodos } from "../notificacoes/notificacoes.service";
 
 const hexColorSchema = z
   .string()
@@ -61,6 +62,7 @@ export const criarAnexoSchema = z.object({
   nome: z.string().trim().min(1, "Nome do anexo e obrigatorio."),
   url: z.string().trim().min(1, "URL do anexo e obrigatoria."),
   tipo: z.string().trim().min(1).optional(),
+  tamanho: z.number().int().positive().optional(),
 });
 
 const tarefaCompletaInclude = {
@@ -503,7 +505,24 @@ export async function criarTarefa(data: unknown, usuarioId: string) {
     return novaTarefa;
   });
 
-  return buscarTarefaCompleta(tarefa.id);
+  const tarefaCompleta = await buscarTarefaCompleta(tarefa.id);
+
+  // Notificar responsável e membros sobre a nova tarefa
+  // Usa notificarTodos: o próprio usuário deve receber mesmo que tenha criado a tarefa
+  const destinatarios = [
+    tarefaCompleta.id_responsavel,
+    ...(tarefaCompleta.membros?.map((m) => m.id_usuario ?? "") ?? []),
+  ].filter(Boolean) as string[];
+
+  await notificarTodos(
+    destinatarios,
+    `Você foi atribuído à tarefa "${tarefaCompleta.titulo}" no projeto "${tarefaCompleta.projeto.nome}".`,
+    "TAREFA_ATRIBUIDA",
+    tarefaCompleta.id,
+    tarefaCompleta.id_projeto
+  );
+
+  return tarefaCompleta;
 }
 
 export async function atualizarTarefa(
@@ -592,7 +611,68 @@ export async function atualizarTarefa(
     }
   });
 
-  return buscarTarefaCompleta(tarefaId);
+  const tarefaAtualizada = await buscarTarefaCompleta(tarefaId);
+
+  // Verificar se houve alterações significativas na tarefa (título, descrição, prioridade, prazo)
+  const houveMudancaRelevante =
+    payload.titulo !== undefined ||
+    payload.descricao !== undefined ||
+    payload.prioridade !== undefined ||
+    payload.prazo !== undefined;
+
+  if (houveMudancaRelevante) {
+    const destinatariosAlteracao = [
+      tarefaAtualizada.id_responsavel,
+      ...(tarefaAtualizada.membros?.map((m) => m.id_usuario ?? "") ?? []),
+    ].filter(Boolean) as string[];
+
+    await notificarMembros(
+      destinatariosAlteracao,
+      `A tarefa "${tarefaAtualizada.titulo}" (${tarefaAtualizada.projeto.nome}) foi atualizada.`,
+      "TAREFA_ATRIBUIDA",
+      tarefaId,
+      tarefaAtualizada.id_projeto,
+      usuarioId
+    );
+  }
+
+  // Notificar se a tarefa mudou de coluna (status)
+  if (
+    payload.id_coluna !== undefined &&
+    payload.id_coluna !== tarefaAtual.id_coluna
+  ) {
+    const nomeColuna = tarefaAtualizada.coluna?.nome ?? "sem coluna";
+    const destinatarios = [
+      tarefaAtualizada.id_responsavel,
+      ...(tarefaAtualizada.membros?.map((m) => m.id_usuario ?? "") ?? []),
+    ].filter(Boolean) as string[];
+
+    await notificarMembros(
+      destinatarios,
+      `A tarefa "${tarefaAtualizada.titulo}" foi movida para "${nomeColuna}".`,
+      "TAREFA_MOVIDA",
+      tarefaId,
+      tarefaAtualizada.id_projeto,
+      usuarioId
+    );
+  }
+
+  // Notificar se houve troca de responsável
+  if (
+    payload.id_responsavel &&
+    payload.id_responsavel !== tarefaAtual.id_responsavel
+  ) {
+    await notificarMembros(
+      [payload.id_responsavel],
+      `Você se tornou responsável pela tarefa "${tarefaAtualizada.titulo}" no projeto "${tarefaAtualizada.projeto.nome}".`,
+      "TAREFA_ATRIBUIDA",
+      tarefaId,
+      tarefaAtualizada.id_projeto,
+      usuarioId
+    );
+  }
+
+  return tarefaAtualizada;
 }
 
 export async function adicionarComentario(
@@ -623,32 +703,79 @@ export async function adicionarComentario(
     );
   });
 
-  return buscarTarefaCompleta(tarefaId);
+  const tarefaCompleta = await buscarTarefaCompleta(tarefaId);
+
+  // Notificar todos os membros da tarefa sobre o novo comentário
+  const destinatarios = [
+    tarefaCompleta.id_responsavel,
+    ...(tarefaCompleta.membros?.map((m) => m.id_usuario ?? "") ?? []),
+  ].filter(Boolean) as string[];
+
+  await notificarMembros(
+    destinatarios,
+    `Novo comentário na tarefa "${tarefaCompleta.titulo}" (${tarefaCompleta.projeto.nome}).`,
+    "COMENTARIO_ADICIONADO",
+    tarefaId,
+    tarefaCompleta.id_projeto,
+    usuarioId
+  );
+
+  return tarefaCompleta;
+}
+
+export async function listarAnexosTarefa(
+  tarefaId: string,
+  usuarioId: string
+) {
+  await buscarTarefaComAcesso(tarefaId, usuarioId);
+
+  return prisma.anexo.findMany({
+    where: { id_tarefa: tarefaId },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 export async function adicionarAnexo(
   tarefaId: string,
-  data: unknown,
+  anexo: { nome: string; url: string; tipo: string; tamanho?: number },
   usuarioId: string
 ) {
-  const payload = criarAnexoSchema.parse(data);
-
   await buscarTarefaComAcesso(tarefaId, usuarioId);
 
   await prisma.$transaction(async (tx) => {
     await tx.anexo.create({
       data: {
-        nome: payload.nome,
-        url: payload.url,
-        tipo: payload.tipo ?? "application/octet-stream",
+        nome: anexo.nome,
+        url: anexo.url,
+        tipo: anexo.tipo,
+        tamanho: anexo.tamanho,
         id_tarefa: tarefaId,
       },
     });
 
-    await registrarHistorico(tx, tarefaId, usuarioId, "anexo", null, payload.nome);
+    await registrarHistorico(tx, tarefaId, usuarioId, "anexo", null, anexo.nome);
   });
 
   return buscarTarefaCompleta(tarefaId);
+}
+
+export async function deletarAnexoTarefa(
+  tarefaId: string,
+  anexoId: string,
+  usuarioId: string
+) {
+  await buscarTarefaComAcesso(tarefaId, usuarioId);
+
+  const anexo = await prisma.anexo.findFirst({
+    where: { id: anexoId, id_tarefa: tarefaId },
+  });
+
+  if (!anexo) {
+    throw criarErro("Anexo não encontrado.", "NOT_FOUND");
+  }
+
+  await prisma.anexo.delete({ where: { id: anexoId } });
+  return { url: anexo.url };
 }
 
 export async function deletarTarefa(

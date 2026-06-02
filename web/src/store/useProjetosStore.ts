@@ -16,6 +16,7 @@ interface ProjetosStore {
   deletar: (projetoId: string) => Promise<void>;
   adicionarMembro: (projetoId: string, usuarioId: string, cargo: "GERENTE" | "MEMBRO") => Promise<void>;
   removerMembro: (projetoId: string, usuarioId: string) => Promise<void>;
+  atualizarCargoMembro: (projetoId: string, usuarioId: string, cargo: "GERENTE" | "MEMBRO") => Promise<void>;
   definirProjetoAtivo: (projeto: Projeto | null) => void;
   criarColuna: (projetoId: string, nome: string) => Promise<ColunaKanban>;
   deletarColuna: (projetoId: string, colunaId: string) => Promise<void>;
@@ -145,6 +146,24 @@ export const useProjetosStore = create<ProjetosStore>((set: any) => ({
       }));
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : "Erro ao remover membro";
+      set({ erro: mensagem });
+      throw error;
+    } finally {
+      set({ carregando: false });
+    }
+  },
+
+  atualizarCargoMembro: async (projetoId: string, usuarioId: string, cargo: "GERENTE" | "MEMBRO") => {
+    set({ carregando: true, erro: null });
+    try {
+      await projetoService.atualizarCargoMembro(projetoId, usuarioId, cargo);
+      const projetoAtualizado = await projetoService.obter(projetoId);
+      set((state: ProjetosStore) => ({
+        projetos: state.projetos.map((p) => (p.id === projetoId ? projetoAtualizado : p)),
+        projetoAtual: state.projetoAtual?.id === projetoId ? projetoAtualizado : state.projetoAtual,
+      }));
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Erro ao atualizar cargo do membro";
       set({ erro: mensagem });
       throw error;
     } finally {

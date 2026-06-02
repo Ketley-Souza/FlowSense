@@ -86,6 +86,42 @@ export async function salvarAnexoProjeto(file: MultipartFile): Promise<{
   };
 }
 
+export async function salvarAnexoTarefa(file: MultipartFile): Promise<{
+  url: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+}> {
+  if (!TIPOS_PERMITIDOS_DOCUMENTO.includes(file.mimetype)) {
+    const error = new Error("Tipo de arquivo não permitido.");
+    (error as NodeJS.ErrnoException).code = "BAD_REQUEST";
+    throw error;
+  }
+
+  const MAX = 20 * 1024 * 1024; // 20 MB
+  const dir = path.join(UPLOADS_DIR, "tarefas");
+  await fs.mkdir(dir, { recursive: true });
+
+  const ext = path.extname(file.filename) || extensaoPorMime(file.mimetype);
+  const fileName = `${randomUUID()}${ext}`;
+  const filePath = path.join(dir, fileName);
+
+  const buffer = await file.toBuffer();
+  if (buffer.byteLength > MAX) {
+    const error = new Error("Arquivo muito grande. Máximo: 20 MB.");
+    (error as NodeJS.ErrnoException).code = "BAD_REQUEST";
+    throw error;
+  }
+
+  await fs.writeFile(filePath, buffer);
+  return {
+    url: `/uploads/tarefas/${fileName}`,
+    nome: file.filename,
+    tipo: file.mimetype,
+    tamanho: buffer.byteLength,
+  };
+}
+
 export async function deletarArquivo(urlRelativa: string): Promise<void> {
   try {
     const relPath = urlRelativa.replace(/^\//, "");

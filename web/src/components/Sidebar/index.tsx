@@ -16,6 +16,7 @@ import { SidebarItem } from "@/components/Sidebar/sidebarItem";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useNotificacoesSistema } from "@/contexts/NotificacoesSistemaContext";
 import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
 
 import logo from "@/assets/Logo.svg";
@@ -27,39 +28,39 @@ interface NavItem {
   badge?: number;
 }
 
-const navItems: NavItem[] = [
-  {
-    icon: <LayoutDashboard size={20} />,
-    label: "Dashboard",
-    to: "/dashboard",
-  },
-  {
-    icon: <FolderKanban size={20} />,
-    label: "Projetos",
-    to: "/projetos",
-  },
-  {
-    icon: <Columns3 size={20} />,
-    label: "Kanban",
-    to: "/kamban",
-  },
-  {
-    icon: <Bell size={20} />,
-    label: "Notificações",
-    to: "/notificacoes",
-    badge: 2,
-  },
-  {
-    icon: <Users size={20} />,
-    label: "Equipe",
-    to: "/equipe",
-  },
-];
-
 export function Sidebar() {
   const navigate = useNavigate();
-
   const usuario = getUsuarioLogado();
+  const { totalNaoLidas } = useNotificacoesSistema();
+
+  const navItems: NavItem[] = [
+    {
+      icon: <LayoutDashboard size={20} />,
+      label: "Dashboard",
+      to: "/dashboard",
+    },
+    {
+      icon: <FolderKanban size={20} />,
+      label: "Projetos",
+      to: "/projetos",
+    },
+    {
+      icon: <Columns3 size={20} />,
+      label: "Kanban",
+      to: "/kamban",
+    },
+    {
+      icon: <Bell size={20} />,
+      label: "Notificações",
+      to: "/notificacoes",
+      badge: totalNaoLidas > 0 ? totalNaoLidas : undefined,
+    },
+    {
+      icon: <Users size={20} />,
+      label: "Equipe",
+      to: "/equipe",
+    },
+  ];
 
   const {
     isOpen,

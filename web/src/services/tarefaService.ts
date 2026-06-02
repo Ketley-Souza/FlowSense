@@ -1,7 +1,7 @@
 import api from "@/services/api";
 import type {
   AtualizarTarefaPayload,
-  CriarAnexoPayload,
+  Anexo,
   CriarComentarioPayload,
   CriarTarefaPayload,
   Tarefa,
@@ -39,12 +39,25 @@ export const tarefaService = {
     return data;
   },
 
-  adicionarAnexo: async (
-    tarefaId: string,
-    payload: CriarAnexoPayload
-  ): Promise<Tarefa> => {
-    const { data } = await api.post<Tarefa>(`/tarefas/${tarefaId}/anexos`, payload);
+  //listar anexos da tarefa
+  listarAnexos: async (tarefaId: string): Promise<Anexo[]> => {
+    const { data } = await api.get<Anexo[]>(`/tarefas/${tarefaId}/anexos`);
     return data;
+  },
+
+  //add anexo por upload
+  adicionarAnexo: async (tarefaId: string, arquivo: File): Promise<Tarefa> => {
+    const formData = new FormData();
+    formData.append("file", arquivo);
+    const { data } = await api.post<Tarefa>(`/tarefas/${tarefaId}/anexos`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  //deletar
+  deletarAnexo: async (tarefaId: string, anexoId: string): Promise<void> => {
+    await api.delete(`/tarefas/${tarefaId}/anexos/${anexoId}`);
   },
 
   deletar: async (tarefaId: string): Promise<void> => {

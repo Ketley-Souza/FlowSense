@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type {
   AtualizarTarefaPayload,
-  CriarAnexoPayload,
   CriarComentarioPayload,
   CriarTarefaPayload,
   Tarefa,
@@ -22,7 +21,8 @@ interface TarefasStore {
     tarefaId: string,
     payload: CriarComentarioPayload
   ) => Promise<Tarefa>;
-  adicionarAnexo: (tarefaId: string, payload: CriarAnexoPayload) => Promise<Tarefa>;
+  adicionarAnexo: (tarefaId: string, arquivo: File) => Promise<Tarefa>;
+  deletarAnexo: (tarefaId: string, anexoId: string) => Promise<void>;
   deletar: (tarefaId: string) => Promise<void>;
   limpar: () => void;
 }
@@ -120,12 +120,12 @@ export const useTarefasStore = create<TarefasStore>((set: any) => ({
     }
   },
 
-  adicionarAnexo: async (tarefaId: string, payload: CriarAnexoPayload) => {
+  adicionarAnexo: async (tarefaId: string, arquivo: File) => {
     set({ carregando: true, erro: null });
     try {
       const tarefaAtualizada = await tarefaService.adicionarAnexo(
         tarefaId,
-        payload
+        arquivo
       );
       set((state: TarefasStore) => ({
         tarefas: state.tarefas.map((t) =>
@@ -140,6 +140,24 @@ export const useTarefasStore = create<TarefasStore>((set: any) => ({
       throw error;
     } finally {
       set({ carregando: false });
+    }
+  },
+
+  deletarAnexo: async (tarefaId: string, anexoId: string) => {
+    try {
+      await tarefaService.deletarAnexo(tarefaId, anexoId);
+      set((state: TarefasStore) => ({
+        tarefas: state.tarefas.map((t) =>
+          t.id === tarefaId
+            ? { ...t, anexos: (t.anexos ?? []).filter((a) => a.id !== anexoId) }
+            : t
+        ),
+      }));
+    } catch (error) {
+      const mensagem =
+        error instanceof Error ? error.message : "Erro ao deletar anexo";
+      set({ erro: mensagem });
+      throw error;
     }
   },
 

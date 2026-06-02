@@ -38,6 +38,7 @@ export default function Kanban() {
   const [view, setView] = useState<ViewMode>("kanban");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editFormOpen, setEditFormOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosPainel>({ prioridade: "", busca: "" });
@@ -169,6 +170,18 @@ export default function Kanban() {
       toast.sucesso("Tarefa excluída com sucesso!");
     } catch (err) {
       toast.erro(err instanceof Error ? err.message : "Erro ao excluir tarefa");
+    }
+  }
+
+  async function handleEditarTarefa(payload: any): Promise<void> {
+    if (!tarefaSelecionadaId) return;
+    try {
+      await useTarefasStore.getState().atualizar(tarefaSelecionadaId, payload);
+      setEditFormOpen(false);
+      setTarefaSelecionadaId(null);
+      toast.sucesso("Tarefa atualizada com sucesso!");
+    } catch (err) {
+      toast.erro(err instanceof Error ? err.message : "Erro ao atualizar tarefa");
     }
   }
 
@@ -474,8 +487,18 @@ export default function Kanban() {
       <EditTaskModal
         isOpen={editModalOpen}
         onClose={() => { setEditModalOpen(false); setTarefaSelecionadaId(null); }}
-        onEdit={() => {}}
+        onEdit={() => { setEditModalOpen(false); setEditFormOpen(true); }}
         onDelete={handleDeletarTarefa}
+        task={tarefaSelecionada ?? undefined}
+      />
+
+      <CreateTaskModal
+        isOpen={editFormOpen}
+        onClose={() => { setEditFormOpen(false); setTarefaSelecionadaId(null); }}
+        onSubmit={handleEditarTarefa}
+        colunas={colunasParaModal}
+        membros={membrosDoProejto}
+        tagsExistentes={tagsDoProejto}
         task={tarefaSelecionada ?? undefined}
       />
 

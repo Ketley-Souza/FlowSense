@@ -4,6 +4,7 @@ import { useEquipesStore } from "@/store/useEquipesStore";
 import { ChevronDown, AlertCircle, Paperclip, X, FileText, Image, File } from "lucide-react";
 import { inputParaIso } from "@/utils/dates";
 import type { Usuario, Equipe, UsuarioEquipe } from "@/types";
+import { projetoService } from "@/services/projetoService";
 
 type Cargo = "GERENTE" | "MEMBRO";
 
@@ -32,11 +33,11 @@ export function CreateProjectModal({
   onSubmit,
 }: CreateProjectModalProps) {
   const equipes = useEquipesStore((state) => state.equipes) as Equipe[];
-  const usuariosEquipe = useEquipesStore((state) => state.usuarios) as UsuarioEquipe[];
   const listar = useEquipesStore((state) => state.listar);
   const listarMembros = useEquipesStore((state) => state.listarMembros);
 
-  const usuarios: Usuario[] = usuariosEquipe.map((ue) => ue.usuario);
+  const [todosUsuarios, setTodosUsuarios] = useState<Usuario[]>([]);
+  const usuarios = todosUsuarios;
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -63,12 +64,27 @@ export function CreateProjectModal({
   useEffect(() => {
     if (isOpen) {
       listar();
+      projetoService.listarUsuariosParaAdicionar()
+        .then(setTodosUsuarios)
+        .catch(console.error);
     }
   }, [isOpen, listar]);
 
   useEffect(() => {
     if (equipeId) {
-      listarMembros(equipeId).catch(console.error);
+      listarMembros(equipeId)
+        .then((membros) => {
+          if (membros && membros.length > 0) {
+            const defaultMembros = membros.map((m) => ({
+              id_usuario: m.usuario_id,
+              cargo: (m.cargo === "ADMIN" || m.cargo === "GERENTE") ? ("GERENTE" as Cargo) : ("MEMBRO" as Cargo),
+            }));
+            setMembrosAdicionados(defaultMembros);
+          }
+        })
+        .catch(console.error);
+    } else {
+      setMembrosAdicionados([]);
     }
   }, [equipeId, listarMembros]);
 
@@ -259,13 +275,13 @@ export function CreateProjectModal({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Adicionar Membros da Equipe (opcional)
+            Adicionar Membros ao Projeto (opcional)
           </label>
 
           {!usuarios || usuarios.length === 0 ? (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
               <AlertCircle size={16} className="text-yellow-700 shrink-0" />
-              <span>Nenhum membro criado na equipe.</span>
+              <span>Nenhum usuário cadastrado no sistema.</span>
             </div>
           ) : (
             <>

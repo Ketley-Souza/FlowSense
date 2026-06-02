@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { X, Pencil, Trash2, Send, Paperclip, Plus, CheckSquare, Square, Calendar, Download } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Pencil, Trash2, Send, Paperclip, CheckSquare, Square, Calendar, Download, Upload, Loader2, FileText, Image, File, FileSpreadsheet } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { Tarefa, Subtarefa, Tag } from "@/types";
 import { useTarefasStore } from "@/store/useTarefasStore";
@@ -7,6 +7,8 @@ import { useToast } from "@/components/Toast";
 import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { calcularProgressoTarefa, formatarDataBR } from "@/utils/kanban";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
 type Aba = "detalhes" | "comentarios" | "anexos" | "historico";
 
@@ -32,21 +34,20 @@ interface EditTaskModalProps {
 export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditTaskModalProps) {
   const [abaAtiva, setAbaAtiva] = useState<Aba>("detalhes");
   const [novoComentario, setNovoComentario] = useState("");
-  const [nomeAnexo, setNomeAnexo] = useState("");
-  const [urlAnexo, setUrlAnexo] = useState("");
-  const [showAnexoForm, setShowAnexoForm] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
+  const [deletandoAnexoId, setDeletandoAnexoId] = useState<string | null>(null);
   const [deletando, setDeletando] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const inputAnexoRef = useRef<HTMLInputElement>(null);
 
-  const { atualizar, adicionarComentario, adicionarAnexo } = useTarefasStore();
+  const { atualizar, adicionarComentario, adicionarAnexo, deletarAnexo } = useTarefasStore();
   const toast = useToast();
 
   useEffect(() => {
     if (isOpen) {
       setAbaAtiva("detalhes");
       setNovoComentario("");
-      setShowAnexoForm(false);
     }
   }, [isOpen, task?.id]);
 
@@ -98,22 +99,40 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
     }
   }
 
-  async function handleAdicionarAnexo() {
-    if (!urlAnexo.trim() || !task) return;
-    setEnviando(true);
+  async function handleUploadAnexo(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length || !task) return;
+
+    setEnviandoAnexo(true);
+    let sucessos = 0;
+    let falhas = 0;
+
+    for (const arquivo of files) {
+      try {
+        await adicionarAnexo(task.id, arquivo);
+        sucessos++;
+      } catch {
+        falhas++;
+      }
+    }
+
+    if (sucessos > 0) toast.sucesso(`${sucessos} arquivo(s) enviado(s)!`);
+    if (falhas > 0) toast.erro(`${falhas} arquivo(s) falharam. Verifique o tamanho (máx. 20 MB).`);
+
+    setEnviandoAnexo(false);
+    if (inputAnexoRef.current) inputAnexoRef.current.value = "";
+  }
+
+  async function handleDeletarAnexo(anexoId: string) {
+    if (!task) return;
+    setDeletandoAnexoId(anexoId);
     try {
-      await adicionarAnexo(task.id, {
-        nome: nomeAnexo.trim() || urlAnexo.split("/").pop() || "Anexo",
-        url: urlAnexo.trim(),
-        tipo: "application/octet-stream",
-      });
-      setNomeAnexo("");
-      setUrlAnexo("");
-      setShowAnexoForm(false);
+      await deletarAnexo(task.id, anexoId);
+      toast.sucesso("Anexo removido.");
     } catch {
-      toast.erro("Erro ao adicionar anexo");
+      toast.erro("Erro ao remover anexo.");
     } finally {
-      setEnviando(false);
+      setDeletandoAnexoId(null);
     }
   }
 
@@ -371,69 +390,165 @@ export function EditTaskModal({ isOpen, onClose, onEdit, onDelete, task }: EditT
           {/* ===== ABA ANEXOS ===== */}
           {abaAtiva === "anexos" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#9EB2CC]">Arquivos & Fotos</p>
+              {/* Área de upload */}
+              <div className="border-b border-[#EEF2F8] pb-3">
+                <input
+                  ref={inputAnexoRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleUploadAnexo}
+                  disabled={enviandoAnexo}
+                />
                 <button
                   type="button"
-                  onClick={() => setShowAnexoForm((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-[#5B35F5] hover:text-[#4D2DE0]"
+                  onClick={() => inputAnexoRef.current?.click()}
+                  disabled={enviandoAnexo}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 py-3 text-sm font-semibold text-indigo-600 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Paperclip size={14} />
-                  Adicionar
+                  {enviandoAnexo ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={15} />
+                      Adicionar arquivos
+                    </>
+                  )}
                 </button>
+                <p className="mt-1.5 text-center text-xs text-[#9EB2CC]">
+                  Imagens, PDF, Word, Excel, CSV, ZIP — máx. 20 MB
+                </p>
               </div>
 
-              {showAnexoForm && (
-                <div className="rounded-xl border border-[#DDE7F3] bg-[#F8FBFF] p-3 space-y-2">
-                  <input
-                    type="text"
-                    value={nomeAnexo}
-                    onChange={(e) => setNomeAnexo(e.target.value)}
-                    placeholder="Nome do arquivo (opcional)"
-                    className="w-full rounded-lg border border-[#DDE7F3] bg-white px-3 py-2 text-sm outline-none focus:border-[#5B35F5]"
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={urlAnexo}
-                      onChange={(e) => setUrlAnexo(e.target.value)}
-                      placeholder="URL do arquivo"
-                      className="flex-1 rounded-lg border border-[#DDE7F3] bg-white px-3 py-2 text-sm outline-none focus:border-[#5B35F5]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAdicionarAnexo}
-                      disabled={!urlAnexo.trim() || enviando}
-                      className="rounded-lg bg-[#5B35F5] px-3 py-2 text-sm font-bold text-white hover:bg-[#4D2DE0] disabled:opacity-40"
-                    >
-                      OK
-                    </button>
+              {/* Lista de anexos */}
+              {(task.anexos?.length ?? 0) === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF2F8]">
+                    <Paperclip size={20} className="text-[#9EB2CC]" />
                   </div>
+                  <p className="text-sm font-semibold text-[#40506A]">Nenhum anexo ainda</p>
+                  <p className="mt-1 text-xs text-[#9EB2CC]">Clique em "Adicionar arquivos" para enviar</p>
                 </div>
+              ) : (
+                <ul className="space-y-2">
+                  {task.anexos!.map((a) => {
+                    const fullUrl = a.url.startsWith("http") ? a.url : `${API_BASE}${a.url}`;
+                    const isImage = a.tipo.startsWith("image/");
+                    const isPdf = a.tipo === "application/pdf";
+
+                    function iconeAnexo(tipo: string) {
+                      if (tipo.startsWith("image/")) return <Image size={16} className="text-blue-500" />;
+                      if (tipo === "application/pdf") return <FileText size={16} className="text-red-500" />;
+                      if (tipo.includes("spreadsheet") || tipo.includes("excel") || tipo === "text/csv")
+                        return <FileSpreadsheet size={16} className="text-emerald-500" />;
+                      if (tipo.includes("word") || tipo === "text/plain")
+                        return <FileText size={16} className="text-blue-400" />;
+                      return <File size={16} className="text-[#9EB2CC]" />;
+                    }
+
+                    function tamanhoLegivel(bytes?: number | null) {
+                      if (!bytes) return "";
+                      if (bytes < 1024) return `${bytes} B`;
+                      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+                      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                    }
+
+                    return (
+                      <li
+                        key={a.id}
+                        className="group flex items-center gap-3 rounded-xl border border-[#DDE7F3] bg-white p-3 transition hover:border-[#5B35F5]/30 hover:bg-[#F8FBFF]"
+                      >
+                        {/* Ícone / preview */}
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EEF2F8]">
+                          {isImage ? (
+                            <img
+                              src={fullUrl}
+                              alt={a.nome}
+                              className="h-9 w-9 rounded-lg object-cover"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                          ) : (
+                            iconeAnexo(a.tipo)
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-[#202A3D]">{a.nome}</p>
+                          <p className="text-xs text-[#9EB2CC]">
+                            {[tamanhoLegivel(a.tamanho), formatarDataBR(a.createdAt)]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+
+                        {/* Ações */}
+                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                          {/* Download */}
+                          <button
+                            type="button"
+                            title="Baixar"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(fullUrl);
+                                if (!res.ok) throw new Error();
+                                const blob = await res.blob();
+                                const link = document.createElement("a");
+                                link.href = URL.createObjectURL(blob);
+                                link.download = a.nome;
+                                link.click();
+                                URL.revokeObjectURL(link.href);
+                              } catch {
+                                window.open(fullUrl, "_blank", "noopener,noreferrer");
+                              }
+                            }}
+                            className="grid h-8 w-8 place-items-center rounded-lg text-[#9EB2CC] transition hover:bg-[#EEF1FF] hover:text-[#5B35F5]"
+                          >
+                            <Download size={14} />
+                          </button>
+
+                          {/* Ver em nova aba (imagens / PDFs) */}
+                          {(isImage || isPdf) && (
+                            <a
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Visualizar"
+                              className="grid h-8 w-8 place-items-center rounded-lg text-[#9EB2CC] transition hover:bg-[#EEF2F8] hover:text-[#202A3D]"
+                            >
+                              <Paperclip size={13} />
+                            </a>
+                          )}
+
+                          {/* Deletar */}
+                          <button
+                            type="button"
+                            title="Remover"
+                            onClick={() => handleDeletarAnexo(a.id)}
+                            disabled={deletandoAnexoId === a.id}
+                            className="grid h-8 w-8 place-items-center rounded-lg text-[#9EB2CC] transition hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                          >
+                            {deletandoAnexoId === a.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={13} />
+                            )}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
 
-              {(task.anexos?.length ?? 0) === 0 ? (
-                <p className="py-8 text-center text-sm text-[#9EB2CC]">Nenhum anexo</p>
-              ) : (
-                <div className="space-y-2">
-                  {task.anexos!.map((a) => (
-                    <a
-                      key={a.id}
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 rounded-xl border border-[#DDE7F3] bg-white px-4 py-3 transition hover:border-[#5B35F5]/40 hover:bg-[#F8FBFF]"
-                    >
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#EEF1FF]">
-                        <Paperclip size={16} className="text-[#5B35F5]" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-[#202A3D]">{a.nome}</p>
-                        <p className="text-xs text-[#9EB2CC]">{formatarDataBR(a.createdAt)}</p>
-                      </div>
-                    </a>
-                  ))}
-                </div>
+              {/* Rodapé com contagem */}
+              {(task.anexos?.length ?? 0) > 0 && (
+                <p className="text-right text-xs text-[#9EB2CC]">
+                  {task.anexos!.length} arquivo{task.anexos!.length !== 1 ? "s" : ""}
+                </p>
               )}
             </div>
           )}

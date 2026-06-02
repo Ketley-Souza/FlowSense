@@ -7,9 +7,12 @@ import {
   atualizarTarefa,
   criarTarefa,
   deletarTarefa,
+  listarAnexosTarefa,
   listarTarefas,
   listarTarefasPorProjeto,
+  deletarAnexoTarefa,
 } from "./tarefas.service";
+import { salvarAnexoTarefa, deletarArquivo } from "../../lib/upload";
 
 function handleServiceError(
   err: unknown,
@@ -149,6 +152,26 @@ export async function tarefasRoutes(fastify: FastifyInstance): Promise<void> {
     }
   );
 
+  // GET /tarefas/:id/anexos
+  fastify.get(
+    "/tarefas/:id/anexos",
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const anexos = await listarAnexosTarefa(
+          request.params.id,
+          request.user.sub
+        );
+        return reply.send(anexos);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // POST /tarefas/:id/anexos  (multipart)
   fastify.post(
     "/tarefas/:id/anexos",
     async (
@@ -156,12 +179,43 @@ export async function tarefasRoutes(fastify: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ) => {
       try {
+        const file = await request.file();
+        if (!file) {
+          return reply.code(400).send({
+            statusCode: 400,
+            error: "Bad Request",
+            message: "Nenhum arquivo enviado.",
+          });
+        }
+
+        const { url, nome, tipo, tamanho } = await salvarAnexoTarefa(file);
         const tarefa = await adicionarAnexo(
           request.params.id,
-          request.body as unknown,
+          { url, nome, tipo, tamanho },
           request.user.sub
         );
         return reply.code(201).send(tarefa);
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // DELETE /tarefas/:id/anexos/:anexoId
+  fastify.delete(
+    "/tarefas/:id/anexos/:anexoId",
+    async (
+      request: FastifyRequest<{ Params: { id: string; anexoId: string } }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const { url } = await deletarAnexoTarefa(
+          request.params.id,
+          request.params.anexoId,
+          request.user.sub
+        );
+        deletarArquivo(url).catch(() => {});
+        return reply.code(204).send();
       } catch (err) {
         return handleServiceError(err, reply, fastify);
       }

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, ChevronDown, Tag as TagIcon } from "lucide-react";
 import { createPortal } from "react-dom";
-import type { ProjetoMembro, Tag } from "@/types";
+import type { ProjetoMembro, Tag, Tarefa } from "@/types";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface SubtarefaLocal {
+  id?: string;
   titulo: string;
   concluida: boolean;
 }
@@ -22,18 +23,19 @@ interface CreateTaskModalProps {
     titulo: string;
     descricao: string;
     prioridade: "BAIXA" | "MEDIA" | "ALTA";
-    data_inicio?: string;
-    data_fim?: string;
-    id_coluna?: string;
-    id_responsavel?: string;
+    data_inicio?: string | null;
+    data_fim?: string | null;
+    id_coluna?: string | null;
+    id_responsavel?: string | null;
     id_membros?: string[];
-    subtarefas?: Array<{ titulo: string; concluida: boolean }>;
+    subtarefas?: Array<{ id?: string; titulo: string; concluida: boolean }>;
     tags?: Array<{ id?: string; nome: string; cor?: string }>;
   }) => Promise<void>;
   colunas?: Array<{ id: string; nome: string }>;
   membros?: ProjetoMembro[];
   tagsExistentes?: Tag[];
   colunaInicialId?: string;
+  task?: Tarefa;
 }
 
 const TAG_COLORS = [
@@ -55,6 +57,7 @@ export function CreateTaskModal({
   membros = [],
   tagsExistentes = [],
   colunaInicialId,
+  task,
 }: CreateTaskModalProps) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -74,20 +77,35 @@ export function CreateTaskModal({
   // Reset ao abrir
   useEffect(() => {
     if (isOpen) {
-      setTitulo("");
-      setDescricao("");
-      setPrioridade("MEDIA");
-      setColuna(colunaInicialId ?? colunas[0]?.id ?? "");
-      setDataInicio("");
-      setDataFim("");
-      setMembrosSelecionados([]);
-      setSubtarefas([]);
-      setNovaSubtarefa("");
-      setTagsSelecionadas([]);
-      setNovaTagNome("");
-      setShowTagInput(false);
+      if (task) {
+        setTitulo(task.titulo || "");
+        setDescricao(task.descricao || "");
+        setPrioridade(task.prioridade || "MEDIA");
+        setColuna(task.id_coluna || "");
+        setDataInicio(task.data_inicio ? task.data_inicio.split("T")[0] : "");
+        setDataFim(task.data_fim ? task.data_fim.split("T")[0] : "");
+        setMembrosSelecionados(task.membros?.map((m: any) => m.id_usuario) || []);
+        setSubtarefas(task.subtarefas?.map((s: any) => ({ id: s.id, titulo: s.titulo, concluida: s.concluida })) || []);
+        setNovaSubtarefa("");
+        setTagsSelecionadas(task.tags?.map((tt: any) => ({ id: tt.tag.id, nome: tt.tag.nome, cor: tt.tag.cor })) || []);
+        setNovaTagNome("");
+        setShowTagInput(false);
+      } else {
+        setTitulo("");
+        setDescricao("");
+        setPrioridade("MEDIA");
+        setColuna(colunaInicialId ?? colunas[0]?.id ?? "");
+        setDataInicio("");
+        setDataFim("");
+        setMembrosSelecionados([]);
+        setSubtarefas([]);
+        setNovaSubtarefa("");
+        setTagsSelecionadas([]);
+        setNovaTagNome("");
+        setShowTagInput(false);
+      }
     }
-  }, [isOpen, colunaInicialId, colunas]);
+  }, [isOpen, task, colunaInicialId, colunas]);
 
   useEffect(() => {
     if (showTagInput) tagInputRef.current?.focus();
@@ -164,15 +182,13 @@ export function CreateTaskModal({
         titulo: titulo.trim(),
         descricao: descricao.trim(),
         prioridade,
-        data_inicio: dataInicio ? new Date(dataInicio).toISOString() : undefined,
-        data_fim: dataFim ? new Date(dataFim).toISOString() : undefined,
-        id_coluna: coluna || undefined,
-        id_responsavel: membrosSelecionados[0] || undefined,
-        id_membros: membrosSelecionados.length > 0 ? membrosSelecionados : undefined,
-        subtarefas: subtarefas.length > 0 ? subtarefas : undefined,
-        tags: tagsSelecionadas.length > 0
-          ? tagsSelecionadas.map((t) => ({ id: t.id, nome: t.nome, cor: t.cor }))
-          : undefined,
+        data_inicio: dataInicio ? new Date(dataInicio).toISOString() : (task ? null : undefined),
+        data_fim: dataFim ? new Date(dataFim).toISOString() : (task ? null : undefined),
+        id_coluna: coluna || (task ? null : undefined),
+        id_responsavel: membrosSelecionados[0] || (task ? null : undefined),
+        id_membros: membrosSelecionados,
+        subtarefas: subtarefas.map((s) => ({ id: s.id, titulo: s.titulo, concluida: s.concluida })),
+        tags: tagsSelecionadas.map((t) => ({ id: t.id, nome: t.nome, cor: t.cor })),
       });
     } finally {
       setCarregando(false);
@@ -194,7 +210,7 @@ export function CreateTaskModal({
       >
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EEF2F8] bg-white px-6 py-4">
-          <h2 className="text-lg font-bold text-[#202A3D]">Criar Tarefa</h2>
+          <h2 className="text-lg font-bold text-[#202A3D]">{task ? "Editar Tarefa" : "Criar Tarefa"}</h2>
           <button
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-full text-[#7E8DA6] transition hover:bg-slate-100 hover:text-[#202A3D]"
@@ -480,7 +496,7 @@ export function CreateTaskModal({
             disabled={carregando || !titulo.trim()}
             className="h-10 rounded-xl bg-[#5B35F5] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(91,53,245,0.35)] transition hover:bg-[#4D2DE0] disabled:opacity-50"
           >
-            {carregando ? "Criando..." : "Criar"}
+            {carregando ? (task ? "Salvando..." : "Criando...") : (task ? "Salvar" : "Criar")}
           </button>
         </div>
       </div>

@@ -1,0 +1,9 @@
+-- CreateEnum
+CREATE TYPE "TipoNotificacao" AS ENUM ('MEMBRO_ADICIONADO_PROJETO', 'TAREFA_ATRIBUIDA', 'PROJETO_ATUALIZADO', 'COMENTARIO_ADICIONADO', 'PRAZO_24H', 'PRAZO_48H', 'TAREFA_MOVIDA', 'GERAL');
+
+-- AlterTable
+ALTER TABLE "Notificacao" ADD COLUMN     "projetoId" TEXT,
+ADD COLUMN     "tipo" "TipoNotificacao" NOT NULL DEFAULT 'GERAL';
+
+-- AddForeignKey
+ALTER TABLE "Notificacao" ADD CONSTRAINT "Notificacao_projetoId_fkey" FOREIGN KEY ("projetoId") REFERENCES "Projeto"("id") ON DELETE CASCADE ON UPDATE CASCADE;

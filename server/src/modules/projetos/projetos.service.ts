@@ -1,5 +1,6 @@
 import { z } from "zod";
 import prisma from "../../lib/prisma";
+import { criarNotificacao, notificarMembros, notificarTodos } from "../notificacoes/notificacoes.service";
 
 export const criarProjetoSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório."),
@@ -270,6 +271,17 @@ export async function atualizarProjeto(
     },
   });
 
+  // Notificar todos os membros do projeto (incluindo o próprio gerente que editou)
+  // Usa notificarTodos: útil para ter confirmação visual de que a alteração foi salva
+  const idsMembros = projeto.membros.map((m) => m.id_usuario);
+  await notificarTodos(
+    idsMembros,
+    `O projeto "${projeto.nome}" foi atualizado.`,
+    "PROJETO_ATUALIZADO",
+    null,
+    projetoId
+  );
+
   return projeto;
 }
 
@@ -312,6 +324,20 @@ export async function adicionarMembroProjeto(
       id_usuario,
       cargo,
     },
+  });
+
+  // Buscar nome do projeto para a mensagem
+  const projeto = await prisma.projeto.findUnique({
+    where: { id: projetoId },
+    select: { nome: true },
+  });
+
+  // Notificar o novo membro
+  await criarNotificacao({
+    id_usuario,
+    mensagem: `Você foi adicionado ao projeto "${projeto?.nome ?? "sem nome"}".`,
+    tipo: "MEMBRO_ADICIONADO_PROJETO",
+    projetoId,
   });
 }
 

@@ -1,7 +1,9 @@
-import { Filter, Plus } from "lucide-react";
+import { Filter, Plus, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { BoardViewTabs, type ViewMode } from "./BoardViewTabs";
 import { getUsuarioLogado } from "@/services/auth";
+import { useProjetosStore } from "@/store/useProjetosStore";
 
 type KanbanHeaderProps = {
   projectName: string;
@@ -32,6 +34,14 @@ export function KanbanHeader({
   onToggleFiltros,
   children,
 }: KanbanHeaderProps) {
+  const { projetos, projetoAtual, definirProjetoAtivo, listar } = useProjetosStore();
+
+  useEffect(() => {
+    if (projetos.length === 0) {
+      listar().catch(console.error);
+    }
+  }, [projetos.length, listar]);
+
   const usuario = getUsuarioLogado();
   const nomeUsuario = usuario?.nome ?? "Usuário";
   const inicialUsuario = nomeUsuario.charAt(0).toUpperCase();
@@ -51,10 +61,32 @@ export function KanbanHeader({
         <div className="min-w-0 flex-1">
           {/* Título + ações */}
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <h1 className="truncate text-[22px] font-bold text-[#202A3D]">{projectName}</h1>
+            <div className="min-w-0 flex flex-wrap items-center gap-3">
+              <div className="relative">
+                <select
+                  value={projetoAtual?.id || ""}
+                  onChange={(e) => {
+                    const selected = projetos.find((p) => p.id === e.target.value);
+                    definirProjetoAtivo(selected || null);
+                  }}
+                  className="appearance-none pr-9 pl-4 py-2 bg-[#F4F7FB] border border-[#DDE7F3] rounded-xl text-lg font-bold text-[#202A3D] focus:outline-none focus:ring-2 focus:ring-[#5B35F5]/20 cursor-pointer hover:bg-slate-100 transition-colors"
+                >
+                  <option value="">Selecione um Projeto...</option>
+                  {projetos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#7E8DA6]"
+                />
+              </div>
               {activeProjectLabel && (
-                <p className="mt-0.5 text-sm font-medium text-[#7E8DA6]">{activeProjectLabel}</p>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#EEF1FF] text-[#5B35F5] text-xs font-bold border border-[#DDE7F3]">
+                  {activeProjectLabel}
+                </span>
               )}
             </div>
 
