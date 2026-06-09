@@ -8,9 +8,10 @@ import { verificarPrazosProximos } from "./modules/notificacoes/notificacoes.ser
 export function inicializarAgendador() {
   // ─────────────────────────────────────────────────────────────────────────
   // Job: Verificação de prazos próximos
-  // Roda todos os dias às 08:00 (horário do servidor)
+  // Roda a cada hora — a função possui deduplicação interna de 25h,
+  // portanto não reenvia notificações já enviadas no mesmo dia.
   // ─────────────────────────────────────────────────────────────────────────
-  cron.schedule("0 8 * * *", async () => {
+  cron.schedule("0 * * * *", async () => {
     console.log("[Agendador] Iniciando verificação de prazos próximos...");
     try {
       await verificarPrazosProximos();
@@ -19,5 +20,5 @@ export function inicializarAgendador() {
     }
   });
 
-  console.log("[Agendador] Jobs inicializados. Verificação de prazos: diária às 08:00.");
+  console.log("[Agendador] Jobs inicializados. Verificação de prazos: a cada hora.");
 }

@@ -10,6 +10,8 @@ interface MembersListProps {
   busca: string;
   onClearBusca: () => void;
   onInvite: () => void;
+  onAlterarCargo: (membroId: string, novoCargo: "ADMIN" | "GERENTE" | "MEMBRO") => void;
+  onRemover: (membroId: string) => void;
 }
 
 export function MembersList({
@@ -17,6 +19,8 @@ export function MembersList({
   busca,
   onClearBusca,
   onInvite,
+  onAlterarCargo,
+  onRemover,
 }: MembersListProps) {
   if (membros.length === 0 && busca) {
     return (
@@ -72,7 +76,12 @@ export function MembersList({
       </div>
 
       {membros.map((membro) => (
-        <MemberRow key={`${membro.usuario_id}-${membro.status}`} membro={membro} />
+        <MemberRow 
+          key={`${membro.usuario_id}-${membro.status}`} 
+          membro={membro} 
+          onAlterarCargo={onAlterarCargo}
+          onRemover={onRemover}
+        />
       ))}
     </div>
   );

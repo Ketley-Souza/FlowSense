@@ -51,4 +51,16 @@ export const equipeService = {
   removerMembro: async (equipeId: string, membroId: string): Promise<void> => {
     await api.delete(`/equipes/${equipeId}/membros/${membroId}`);
   },
+
+  alterarCargo: async (
+    equipeId: string,
+    membroId: string,
+    cargo: "ADMIN" | "GERENTE" | "MEMBRO"
+  ): Promise<UsuarioEquipe> => {
+    const { data } = await api.patch<UsuarioEquipe>(
+      `/equipes/${equipeId}/membros/${membroId}`,
+      { cargo }
+    );
+    return data;
+  },
 };

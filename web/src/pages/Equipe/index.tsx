@@ -14,6 +14,7 @@ import { ModalConvidarMembro } from "./ModalConvidarMembro";
 import { ModalEditarEquipe } from "./ModalEditarEquipe";
 import { ModalCriarEquipe } from "./ModalCriarEquipe";
 import { ModalConfirmarDeletar } from "./ModalConfirmarDeletar";
+import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 
 function MemberRowSkeleton() {
   return (
@@ -43,6 +44,8 @@ export default function EquipePage() {
     erro,
     definirAtiva,
     criar,
+    alterarCargoMembro,
+    removerMembro,
   } = useEquipesStore();
 
   const toast = useToastGlobal();
@@ -50,8 +53,9 @@ export default function EquipePage() {
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("TODOS");
   const [modalAberto, setModalAberto] = useState<
-    "convidar" | "criar" | "editar" | "confirmar-deletar" | null
+    "convidar" | "criar" | "editar" | "confirmar-deletar" | "remover-membro" | null
   >(null);
+  const [membroParaRemover, setMembroParaRemover] = useState<string | null>(null);
   const [carregandoMembros, setCarregandoMembros] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -173,6 +177,33 @@ export default function EquipePage() {
       }
     } catch (error) {
       toast.erro(error instanceof Error ? error.message : "Erro ao deletar");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function handleAlterarCargo(membroId: string, novoCargo: "ADMIN" | "GERENTE" | "MEMBRO") {
+    if (!equipeAtiva) return;
+    try {
+      await alterarCargoMembro(equipeAtiva.id, membroId, novoCargo);
+      toast.sucesso("Cargo atualizado!");
+      await recarregarMembrosAtual();
+    } catch (err) {
+      toast.erro(err instanceof Error ? err.message : "Erro ao alterar cargo");
+    }
+  }
+
+  async function handleConfirmarRemover() {
+    if (!equipeAtiva || !membroParaRemover) return;
+    setEnviando(true);
+    try {
+      await removerMembro(equipeAtiva.id, membroParaRemover);
+      toast.sucesso("Membro removido da equipe.");
+      setModalAberto(null);
+      setMembroParaRemover(null);
+      await recarregarMembrosAtual();
+    } catch (err) {
+      toast.erro(err instanceof Error ? err.message : "Erro ao remover membro");
     } finally {
       setEnviando(false);
     }
@@ -322,6 +353,11 @@ export default function EquipePage() {
                 busca={busca}
                 onClearBusca={() => setBusca("")}
                 onInvite={() => setModalAberto("convidar")}
+                onAlterarCargo={handleAlterarCargo}
+                onRemover={(membroId) => {
+                  setMembroParaRemover(membroId);
+                  setModalAberto("remover-membro");
+                }}
               />
             )}
           </main>
@@ -366,6 +402,20 @@ export default function EquipePage() {
         onConfirm={handleDeletarEquipe}
         equipeName={equipeAtiva?.nome ?? ""}
         enviando={enviando}
+      />
+      <ConfirmDeleteModal
+        isOpen={modalAberto === "remover-membro"}
+        onClose={() => {
+          setModalAberto(null);
+          setMembroParaRemover(null);
+        }}
+        onConfirm={handleConfirmarRemover}
+        title="Remover membro"
+        description={`Tem certeza que deseja remover ${
+          membros.find((m) => m.usuario_id === membroParaRemover)?.usuario.nome
+        } da equipe?`}
+        confirmLabel="Remover membro"
+        loading={enviando}
       />
     </div>
   );

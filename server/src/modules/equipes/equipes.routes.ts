@@ -12,6 +12,7 @@ import {
   deletarEquipe,
   listarMembrosDisponiveis,
   removerMembro,
+  alterarCargoMembro,
 } from "./equipes.service";
 
 function handleServiceError(
@@ -174,6 +175,30 @@ export async function equipesRoutes(
       try {
         await removerMembro(request.user.sub, request.params.id, request.params.membroId);
         return reply.code(204).send();
+      } catch (err) {
+        return handleServiceError(err, reply, fastify);
+      }
+    }
+  );
+
+  // PATCH /equipes/:id/membros/:membroId - Alterar cargo
+  fastify.patch(
+    "/equipes/:id/membros/:membroId",
+    async (
+      request: FastifyRequest<{ 
+        Params: { id: string; membroId: string };
+        Body: { cargo: "ADMIN" | "GERENTE" | "MEMBRO" };
+      }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        const membroAtualizado = await alterarCargoMembro(
+          request.user.sub,
+          request.params.id,
+          request.params.membroId,
+          request.body.cargo
+        );
+        return reply.send(membroAtualizado);
       } catch (err) {
         return handleServiceError(err, reply, fastify);
       }

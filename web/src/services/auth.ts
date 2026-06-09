@@ -31,7 +31,8 @@ export async function registrarComFormData(
   formData: FormData
 ): Promise<RegisterResponse> {
   const { data } = await api.post<RegisterResponse>("/auth/register", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+    // Definir como undefined força o navegador a gerar o header correto com o boundary
+    headers: { "Content-Type": undefined },
   });
   return data;
 }

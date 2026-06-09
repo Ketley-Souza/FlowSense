@@ -19,8 +19,24 @@ export interface CriarNotificacaoInput {
 
 /**
  * Cria uma única notificação para um usuário.
+ * Aplica deduplicação de 5 minutos: não envia se o mesmo tipo+tarefa+projeto
+ * já foi enviado para o mesmo usuário nos últimos 5 minutos.
  */
 export async function criarNotificacao(input: CriarNotificacaoInput) {
+  const janela = new Date(Date.now() - 5 * 60 * 1000);
+
+  const recente = await prisma.notificacao.findFirst({
+    where: {
+      id_usuario: input.id_usuario,
+      tipo: input.tipo ?? "GERAL",
+      tarefaId: input.tarefaId ?? null,
+      projetoId: input.projetoId ?? null,
+      createdAt: { gte: janela },
+    },
+  });
+
+  if (recente) return recente; // já enviada recentemente, não duplicar
+
   return prisma.notificacao.create({
     data: {
       mensagem: input.mensagem,
@@ -35,7 +51,8 @@ export async function criarNotificacao(input: CriarNotificacaoInput) {
 /**
  * Cria notificações em lote para múltiplos usuários.
  * Ignora o próprio usuário que gerou o evento (autorId).
- * Usar para: projeto atualizado, tarefa movida, comentário adicionado.
+ * Ignora duplicatas: não envia se o mesmo tipo+tarefa+projeto já foi enviado
+ * para o mesmo usuário nos últimos 5 minutos.
  */
 export async function notificarMembros(
   ids: string[],
@@ -51,8 +68,28 @@ export async function notificarMembros(
 
   if (destinatarios.length === 0) return;
 
+  // Janela anti-duplicata: 5 minutos
+  const janela = new Date(Date.now() - 5 * 60 * 1000);
+
+  // Buscar notificações recentes do mesmo tipo+tarefa+projeto para esses usuários
+  const recentes = await prisma.notificacao.findMany({
+    where: {
+      tipo,
+      id_usuario: { in: destinatarios },
+      tarefaId: tarefaId ?? null,
+      projetoId: projetoId ?? null,
+      createdAt: { gte: janela },
+    },
+    select: { id_usuario: true },
+  });
+
+  const jaNotificados = new Set(recentes.map((n) => n.id_usuario));
+  const destinatariosFiltrados = destinatarios.filter((id) => !jaNotificados.has(id));
+
+  if (destinatariosFiltrados.length === 0) return;
+
   await prisma.notificacao.createMany({
-    data: destinatarios.map((id_usuario) => ({
+    data: destinatariosFiltrados.map((id_usuario) => ({
       id_usuario,
       mensagem,
       tipo,
@@ -66,6 +103,7 @@ export async function notificarMembros(
 /**
  * Cria notificações para TODOS os destinatários, incluindo o próprio autor.
  * Usar para: tarefa atribuída (o responsável deve ser notificado mesmo que tenha criado a tarefa).
+ * Também aplica deduplicação de 5 minutos.
  */
 export async function notificarTodos(
   ids: string[],
@@ -78,8 +116,27 @@ export async function notificarTodos(
 
   if (destinatarios.length === 0) return;
 
+  // Janela anti-duplicata: 5 minutos
+  const janela = new Date(Date.now() - 5 * 60 * 1000);
+
+  const recentes = await prisma.notificacao.findMany({
+    where: {
+      tipo,
+      id_usuario: { in: destinatarios },
+      tarefaId: tarefaId ?? null,
+      projetoId: projetoId ?? null,
+      createdAt: { gte: janela },
+    },
+    select: { id_usuario: true },
+  });
+
+  const jaNotificados = new Set(recentes.map((n) => n.id_usuario));
+  const destinatariosFiltrados = destinatarios.filter((id) => !jaNotificados.has(id));
+
+  if (destinatariosFiltrados.length === 0) return;
+
   await prisma.notificacao.createMany({
-    data: destinatarios.map((id_usuario) => ({
+    data: destinatariosFiltrados.map((id_usuario) => ({
       id_usuario,
       mensagem,
       tipo,
@@ -208,21 +265,39 @@ export async function limparNotificacoesLidas(usuarioId: string) {
 
 /**
  * Verifica tarefas com prazo próximo e envia notificações.
- * Deve ser chamado periodicamente pelo agendador (ex: diariamente às 08:00).
+ * Deve ser chamado periodicamente pelo agendador (ex: a cada hora).
+ * Possui deduplicação: não reenvia PRAZO_24H/PRAZO_48H se já enviado
+ * para o mesmo par (usuário, tarefa) nas últimas 25 horas.
  */
 export async function verificarPrazosProximos() {
   const agora = new Date();
 
-  // Janela de 24h
+  // Janela de 24h a partir de agora
   const inicio24h = new Date(agora);
-  const fim24h = new Date(agora);
-  inicio24h.setHours(agora.getHours(), agora.getMinutes(), 0, 0);
-  fim24h.setTime(inicio24h.getTime() + 24 * 60 * 60 * 1000);
+  const fim24h = new Date(agora.getTime() + 24 * 60 * 60 * 1000);
 
-  // Janela de 48h
+  // Janela de 48h (após as 24h)
   const inicio48h = new Date(fim24h);
-  const fim48h = new Date(fim24h);
-  fim48h.setTime(inicio48h.getTime() + 24 * 60 * 60 * 1000);
+  const fim48h = new Date(agora.getTime() + 48 * 60 * 60 * 1000);
+
+  // Janela de deduplicação: últimas 25h (evita reenvio por reinício do servidor)
+  const limiteDedup = new Date(agora.getTime() - 25 * 60 * 60 * 1000);
+
+  // Buscar notificações PRAZO_24H e PRAZO_48H já enviadas nas últimas 25h
+  const jaEnviadas = await prisma.notificacao.findMany({
+    where: {
+      tipo: { in: ["PRAZO_24H", "PRAZO_48H"] },
+      createdAt: { gte: limiteDedup },
+    },
+    select: { id_usuario: true, tarefaId: true, tipo: true },
+  });
+
+  // Criar um Set de chaves "tipo:tarefaId:id_usuario" para lookup O(1)
+  const enviadas = new Set(
+    jaEnviadas
+      .filter((n) => n.tarefaId)
+      .map((n) => `${n.tipo}:${n.tarefaId}:${n.id_usuario}`)
+  );
 
   // Buscar tarefas com prazo em ~24h
   const tarefas24h = await prisma.tarefa.findMany({
@@ -262,6 +337,9 @@ export async function verificarPrazosProximos() {
     const unicos = [...new Set(destinatarios)];
 
     for (const id_usuario of unicos) {
+      const chave = `PRAZO_24H:${tarefa.id}:${id_usuario}`;
+      if (enviadas.has(chave)) continue; // já notificado recentemente
+
       notificacoesPrazo.push({
         id_usuario,
         mensagem: `⚠️ Prazo em 24h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
@@ -280,6 +358,9 @@ export async function verificarPrazosProximos() {
     const unicos = [...new Set(destinatarios)];
 
     for (const id_usuario of unicos) {
+      const chave = `PRAZO_48H:${tarefa.id}:${id_usuario}`;
+      if (enviadas.has(chave)) continue; // já notificado recentemente
+
       notificacoesPrazo.push({
         id_usuario,
         mensagem: `🕐 Prazo em 48h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
@@ -300,6 +381,6 @@ export async function verificarPrazosProximos() {
       `[Agendador] ${notificacoesPrazo.length} notificações de prazo criadas.`
     );
   } else {
-    console.log("[Agendador] Nenhuma tarefa com prazo próximo encontrada.");
+    console.log("[Agendador] Nenhuma tarefa com prazo próximo encontrada (ou já notificadas).");
   }
 }

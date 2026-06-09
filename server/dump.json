@@ -1,0 +1,62 @@
+[
+  {
+    "id": "5bed8a5f-0456-44ea-91da-58648d2940c2",
+    "mensagem": "A tarefa \"asdasd\" (Teste0905) foi atualizada.",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_ATUALIZADA",
+    "id_usuario": "0bf2ad50-bf14-47ba-ae2f-1cf0e7de8a73",
+    "tarefaId": "1260f383-6aea-4e74-9ed9-7b22f3fcff96",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:08:50.978Z"
+  },
+  {
+    "id": "f777a6b8-9ed7-4128-b431-96ee4e160b6d",
+    "mensagem": "A tarefa \"asdasd\" (Teste0905) foi atualizada.",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_ATUALIZADA",
+    "id_usuario": "fea49927-36ce-4be4-8540-ee54933a9751",
+    "tarefaId": "1260f383-6aea-4e74-9ed9-7b22f3fcff96",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:08:50.978Z"
+  },
+  {
+    "id": "a08b9c3e-3cf9-4232-b3ee-b9beaec49e4e",
+    "mensagem": "Nova tarefa criada: \"asdasd\" no projeto \"Teste0905\".",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_CRIADA",
+    "id_usuario": "fea49927-36ce-4be4-8540-ee54933a9751",
+    "tarefaId": "1260f383-6aea-4e74-9ed9-7b22f3fcff96",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:08:27.102Z"
+  },
+  {
+    "id": "0c20aac3-3f6f-4d36-83d1-f4d15e354709",
+    "mensagem": "Nova tarefa criada: \"asdasd\" no projeto \"Teste0905\".",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_CRIADA",
+    "id_usuario": "0bf2ad50-bf14-47ba-ae2f-1cf0e7de8a73",
+    "tarefaId": "1260f383-6aea-4e74-9ed9-7b22f3fcff96",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:08:27.102Z"
+  },
+  {
+    "id": "19fde84f-132d-4937-8087-74b0ab3993cd",
+    "mensagem": "Nova tarefa criada: \"a\" no projeto \"Teste0905\".",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_CRIADA",
+    "id_usuario": "fea49927-36ce-4be4-8540-ee54933a9751",
+    "tarefaId": "6198f7e7-09b7-4773-abcd-67e9f0d104f4",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:05:09.663Z"
+  },
+  {
+    "id": "0b09c940-def1-4e97-9f10-a3176669cd42",
+    "mensagem": "Nova tarefa criada: \"a\" no projeto \"Teste0905\".",
+    "status": "NAO_LIDA",
+    "tipo": "TAREFA_CRIADA",
+    "id_usuario": "0bf2ad50-bf14-47ba-ae2f-1cf0e7de8a73",
+    "tarefaId": "6198f7e7-09b7-4773-abcd-67e9f0d104f4",
+    "projetoId": "73ce07c8-eda9-4377-8f92-7eb7108d43ce",
+    "createdAt": "2026-06-09T19:05:09.663Z"
+  }
+]

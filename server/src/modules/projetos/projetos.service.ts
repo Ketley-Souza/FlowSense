@@ -225,6 +225,26 @@ export async function criarProjeto(
     },
   });
 
+  // Notificar membros extras adicionados na criação do projeto
+  if (payload.membros && payload.membros.length > 0) {
+    const membrosSemCriador = payload.membros
+      .map((m) => m.id_usuario)
+      .filter((id) => id !== usuarioId);
+
+    if (membrosSemCriador.length > 0) {
+      await Promise.all(
+        membrosSemCriador.map((id_usuario) =>
+          criarNotificacao({
+            id_usuario,
+            mensagem: `Você foi adicionado ao projeto "${projeto.nome}".`,
+            tipo: "MEMBRO_ADICIONADO_PROJETO",
+            projetoId: projeto.id,
+          })
+        )
+      );
+    }
+  }
+
   return projetoComMembros;
 }
 
@@ -531,7 +551,16 @@ export async function adicionarAnexoProjeto(
     throw error;
   }
 
-  return prisma.anexoProjeto.create({
+  // Buscar nome do projeto e membros para a notificação
+  const projeto = await prisma.projeto.findUnique({
+    where: { id: projetoId },
+    select: {
+      nome: true,
+      membros: { select: { id_usuario: true } },
+    },
+  });
+
+  const novoAnexo = await prisma.anexoProjeto.create({
     data: {
       nome: anexo.nome,
       url: anexo.url,
@@ -540,6 +569,21 @@ export async function adicionarAnexoProjeto(
       id_projeto: projetoId,
     },
   });
+
+  // Notificar todos os membros do projeto (exceto quem adicionou)
+  if (projeto) {
+    const idsMembros = projeto.membros.map((m) => m.id_usuario);
+    await notificarMembros(
+      idsMembros,
+      `📎 Novo arquivo adicionado ao projeto "${projeto.nome}": "${anexo.nome}".`,
+      "ANEXO_ADICIONADO",
+      null,
+      projetoId,
+      usuarioId
+    );
+  }
+
+  return novoAnexo;
 }
 
 export async function deletarAnexoProjeto(

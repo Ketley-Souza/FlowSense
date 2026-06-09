@@ -15,6 +15,7 @@ enum Prioridade {
 }
 
 enum Cargo {
+  ADMIN
   GERENTE
   MEMBRO
 }

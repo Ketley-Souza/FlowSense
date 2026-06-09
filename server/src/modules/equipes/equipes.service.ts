@@ -337,6 +337,63 @@ export async function removerMembro(
   });
 }
 
+export async function alterarCargoMembro(
+  solicitanteId: string,
+  equipeId: string,
+  membroId: string,
+  novoCargo: "ADMIN" | "GERENTE" | "MEMBRO"
+): Promise<any> {
+  // Verificar se solicitante é ADMIN ou GERENTE
+  const solicitante = await prisma.usuarioEquipe.findUnique({
+    where: { usuario_id_equipe_id: { usuario_id: solicitanteId, equipe_id: equipeId } },
+  });
+
+  if (!solicitante || !["ADMIN", "GERENTE"].includes(solicitante.cargo)) {
+    const error = new Error("Você não tem permissão para alterar cargos");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Apenas ADMIN pode promover/rebaixar outros ADMINs
+  const membroAlvo = await prisma.usuarioEquipe.findUnique({
+    where: { usuario_id_equipe_id: { usuario_id: membroId, equipe_id: equipeId } },
+  });
+
+  if (!membroAlvo) {
+    const error = new Error("Membro não encontrado nessa equipe");
+    (error as any).code = "NOT_FOUND";
+    throw error;
+  }
+
+  if (membroAlvo.cargo === "ADMIN" && solicitante.cargo !== "ADMIN") {
+    const error = new Error("Apenas administradores podem alterar o cargo de outro administrador");
+    (error as any).code = "FORBIDDEN";
+    throw error;
+  }
+
+  // Não permitir remover o último ADMIN (se ele tentar se rebaixar)
+  if (membroId === solicitanteId && novoCargo !== "ADMIN" && solicitante.cargo === "ADMIN") {
+    const adminsCount = await prisma.usuarioEquipe.count({
+      where: { equipe_id: equipeId, cargo: "ADMIN" },
+    });
+    if (adminsCount <= 1) {
+      const error = new Error("Você é o único administrador. Atribua outro antes de mudar seu cargo.");
+      (error as any).code = "FORBIDDEN";
+      throw error;
+    }
+  }
+
+  return prisma.usuarioEquipe.update({
+    where: { usuario_id_equipe_id: { usuario_id: membroId, equipe_id: equipeId } },
+    data: { cargo: novoCargo },
+    include: {
+      usuario: {
+        select: { id: true, nome: true, email: true, login: true, foto_url: true },
+      },
+    },
+  });
+}
+
 export async function listarMembrosDisponiveis(
   usuarioId: string
 ): Promise<any> {

@@ -22,6 +22,12 @@ interface EquipesStore {
   ) => Promise<void>;
   listarMembros: (equipeId: string) => Promise<UsuarioEquipe[]>;
   listarMembrosDisponiveis: () => Promise<Usuario[]>;
+  alterarCargoMembro: (
+    equipeId: string,
+    membroId: string,
+    novoCargo: "ADMIN" | "GERENTE" | "MEMBRO"
+  ) => Promise<void>;
+  removerMembro: (equipeId: string, membroId: string) => Promise<void>;
 }
 
 export const useEquipesStore = create<EquipesStore>((set, get) => ({
@@ -151,6 +157,34 @@ export const useEquipesStore = create<EquipesStore>((set, get) => ({
     } catch (error) {
       const mensagem =
         error instanceof Error ? error.message : "Erro ao listar membros disponíveis";
+      set({ erro: mensagem });
+      throw error;
+    } finally {
+      set({ carregando: false });
+    }
+  },
+
+  alterarCargoMembro: async (equipeId, membroId, novoCargo) => {
+    set({ carregando: true, erro: null });
+    try {
+      await equipeService.alterarCargo(equipeId, membroId, novoCargo);
+      await get().listarMembros(equipeId); // Recarrega os membros para atualizar a lista
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Erro ao alterar cargo do membro";
+      set({ erro: mensagem });
+      throw error;
+    } finally {
+      set({ carregando: false });
+    }
+  },
+
+  removerMembro: async (equipeId, membroId) => {
+    set({ carregando: true, erro: null });
+    try {
+      await equipeService.removerMembro(equipeId, membroId);
+      await get().listarMembros(equipeId); // Recarrega os membros para atualizar a lista
+    } catch (error) {
+      const mensagem = error instanceof Error ? error.message : "Erro ao remover membro da equipe";
       set({ erro: mensagem });
       throw error;
     } finally {
