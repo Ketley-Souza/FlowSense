@@ -5,6 +5,7 @@ import {
   BellOff,
   Check,
   CheckCheck,
+  CheckCircle2,
   CircleAlert,
   CircleDot,
   Clock,
@@ -13,6 +14,9 @@ import {
   Loader2,
   MessageSquare,
   MoreVertical,
+  Paperclip,
+  Plus,
+  RefreshCw,
   Trash2,
   UserPlus,
   Zap,
@@ -27,8 +31,18 @@ import type { NotificacaoSistema, TipoNotificacao } from "@/types";
 
 function getIconePorTipo(tipo: TipoNotificacao) {
   switch (tipo) {
+    case "TAREFA_CRIADA":
+      return <Plus size={17} className="text-emerald-500" />;
     case "TAREFA_ATRIBUIDA":
       return <Zap size={17} className="text-indigo-500" />;
+    case "TAREFA_ATUALIZADA":
+      return <RefreshCw size={17} className="text-blue-500" />;
+    case "TAREFA_CONCLUIDA":
+      return <CheckCircle2 size={17} className="text-green-500" />;
+    case "TAREFA_EXCLUIDA":
+      return <Trash2 size={17} className="text-red-500" />;
+    case "ANEXO_ADICIONADO":
+      return <Paperclip size={17} className="text-amber-500" />;
     case "MEMBRO_ADICIONADO_PROJETO":
       return <UserPlus size={17} className="text-emerald-500" />;
     case "PROJETO_ATUALIZADO":
@@ -53,11 +67,20 @@ function getBgPorTipo(tipo: TipoNotificacao, lida: boolean): string {
       return "bg-red-50 border-red-200";
     case "PRAZO_48H":
       return "bg-orange-50 border-orange-200";
+    case "TAREFA_EXCLUIDA":
+      return "bg-red-50 border-red-200";
+    case "TAREFA_CONCLUIDA":
+      return "bg-green-50 border-green-200";
+    case "TAREFA_CRIADA":
+    case "MEMBRO_ADICIONADO_PROJETO":
+      return "bg-emerald-50 border-emerald-200";
     case "TAREFA_ATRIBUIDA":
     case "TAREFA_MOVIDA":
       return "bg-indigo-50 border-indigo-200";
-    case "MEMBRO_ADICIONADO_PROJETO":
-      return "bg-emerald-50 border-emerald-200";
+    case "TAREFA_ATUALIZADA":
+      return "bg-blue-50 border-blue-200";
+    case "ANEXO_ADICIONADO":
+      return "bg-amber-50 border-amber-200";
     default:
       return "bg-[#eeeaff] border-[#b8a9ff]";
   }
@@ -67,11 +90,19 @@ function getBadgePorTipo(tipo: TipoNotificacao, lida: boolean): string {
   if (lida) return "bg-slate-300";
   switch (tipo) {
     case "PRAZO_24H":
+    case "TAREFA_EXCLUIDA":
       return "bg-red-500";
     case "PRAZO_48H":
       return "bg-orange-400";
+    case "TAREFA_CONCLUIDA":
+      return "bg-green-500";
+    case "TAREFA_CRIADA":
     case "MEMBRO_ADICIONADO_PROJETO":
       return "bg-emerald-500";
+    case "TAREFA_ATUALIZADA":
+      return "bg-blue-500";
+    case "ANEXO_ADICIONADO":
+      return "bg-amber-500";
     default:
       return "bg-indigo-500";
   }
