@@ -1,9 +1,17 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Bell, CircleUserRound, Shield, Camera, User, Loader2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Bell, Camera, CircleUserRound, Loader2, Shield, User } from "lucide-react";
 import { useToastGlobal } from "@/contexts/ToastContext";
-import { atualizarAvatar, atualizarPerfil, sincronizarUsuarioLocal } from "@/services/usuarioService";
+import {
+  alterarSenha,
+  atualizarAvatar,
+  atualizarPerfil,
+  normalizarPreferencias,
+  obterPerfil,
+  salvarPreferencias,
+  sincronizarUsuarioLocal,
+} from "@/services/usuarioService";
 import { getUsuarioLogado } from "@/services/auth";
-import type { Usuario } from "@/types";
+import type { PreferenciasUsuario, Usuario } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
@@ -13,12 +21,14 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       type="button"
       onClick={onChange}
       aria-pressed={checked}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${checked ? "bg-indigo-600" : "bg-slate-300"
-        }`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+        checked ? "bg-indigo-600" : "bg-slate-300"
+      }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
       />
     </button>
   );
@@ -47,34 +57,50 @@ function SectionCard({
 export default function SettingsPage() {
   const toast = useToastGlobal();
 
-  // Dados do usuário
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
 
-  // Avatar
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadandoAvatar, setUploadandoAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Notificações (UI apenas — sem persistência ainda)
-  const [emailNotifs, setEmailNotifs] = useState(false);
-  const [pushNotifs, setPushNotifs] = useState(false);
-  const [taskUpdates, setTaskUpdates] = useState(false);
-  const [comments, setComments] = useState(false);
+  const [preferencias, setPreferencias] = useState<Required<PreferenciasUsuario>>(
+    normalizarPreferencias()
+  );
+  const [preferenciasOriginais, setPreferenciasOriginais] = useState<
+    Required<PreferenciasUsuario>
+  >(normalizarPreferencias());
 
-  // Carregar usuário do localStorage ao montar
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+
   useEffect(() => {
     const u = getUsuarioLogado();
     if (u) {
       setUsuario(u);
       setNome(u.nome);
       setEmail(u.email);
+      const prefs = normalizarPreferencias(u.preferencias);
+      setPreferencias(prefs);
+      setPreferenciasOriginais(prefs);
     }
+
+    obterPerfil()
+      .then((perfil) => {
+        sincronizarUsuarioLocal(perfil);
+        setUsuario(perfil);
+        setNome(perfil.nome);
+        setEmail(perfil.email);
+        const prefs = normalizarPreferencias(perfil.preferencias);
+        setPreferencias(prefs);
+        setPreferenciasOriginais(prefs);
+      })
+      .catch(() => undefined);
   }, []);
 
-  // Montar URL do avatar
   function resolverAvatarUrl(url?: string | null): string | null {
     if (!url) return null;
     if (url.startsWith("http")) return url;
@@ -83,7 +109,14 @@ export default function SettingsPage() {
 
   const avatarSrc = avatarPreview ?? resolverAvatarUrl(usuario?.foto_url);
 
-  // ── Avatar ──────────────────────────────────────────────
+  function aplicarUsuarioAtualizado(usuarioAtualizado: Usuario) {
+    sincronizarUsuarioLocal(usuarioAtualizado);
+    setUsuario(usuarioAtualizado);
+    const prefs = normalizarPreferencias(usuarioAtualizado.preferencias);
+    setPreferencias(prefs);
+    setPreferenciasOriginais(prefs);
+  }
+
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -97,40 +130,90 @@ export default function SettingsPage() {
       return;
     }
 
-    // Preview local imediato
     const reader = new FileReader();
     reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
 
-    // Upload ao servidor
     setUploadandoAvatar(true);
     try {
       const usuarioAtualizado = await atualizarAvatar(file);
-      sincronizarUsuarioLocal(usuarioAtualizado);
-      setUsuario(usuarioAtualizado);
+      aplicarUsuarioAtualizado(usuarioAtualizado);
+      setAvatarPreview(null);
       toast.sucesso("Foto de perfil atualizada!");
     } catch {
       toast.erro("Erro ao enviar foto. Tente novamente.");
-      setAvatarPreview(null); // reverter preview
+      setAvatarPreview(null);
     } finally {
       setUploadandoAvatar(false);
-      // Reset input para permitir reselecionar o mesmo arquivo
       if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   }
 
-  // ── Perfil (nome / email) ────────────────────────────────
-  async function handleSalvarPerfil() {
+  function preferenciasMudaram() {
+    return JSON.stringify(preferencias) !== JSON.stringify(preferenciasOriginais);
+  }
+
+  function senhaFoiPreenchida() {
+    return Boolean(senhaAtual || novaSenha || confirmarSenha);
+  }
+
+  function alternarPreferencia(chave: keyof PreferenciasUsuario) {
+    setPreferencias((prev) => ({ ...prev, [chave]: !prev[chave] }));
+  }
+
+  async function handleSalvarConfiguracoes() {
     if (!nome.trim()) {
       toast.erro("O nome não pode ficar vazio.");
       return;
     }
+
+    if (senhaFoiPreenchida()) {
+      if (!senhaAtual) {
+        toast.erro("Informe sua senha atual.");
+        return;
+      }
+      if (novaSenha.length < 6) {
+        toast.erro("A nova senha deve ter pelo menos 6 caracteres.");
+        return;
+      }
+      if (novaSenha !== confirmarSenha) {
+        toast.erro("Confirme a nova senha corretamente.");
+        return;
+      }
+    }
+
     setSalvandoPerfil(true);
     try {
-      const usuarioAtualizado = await atualizarPerfil({ nome: nome.trim(), email: email.trim() });
-      sincronizarUsuarioLocal(usuarioAtualizado);
-      setUsuario(usuarioAtualizado);
-      toast.sucesso("Perfil atualizado com sucesso!");
+      let usuarioAtualizado = await atualizarPerfil({
+        nome: nome.trim(),
+        email: email.trim(),
+      });
+
+      if (preferenciasMudaram()) {
+        const preferenciasAtualizadas = await salvarPreferencias(preferencias);
+        usuarioAtualizado = {
+          ...usuarioAtualizado,
+          preferencias: preferenciasAtualizadas,
+        };
+      }
+
+      if (senhaFoiPreenchida()) {
+        await alterarSenha({
+          senha_atual: senhaAtual,
+          nova_senha: novaSenha,
+        });
+        setSenhaAtual("");
+        setNovaSenha("");
+        setConfirmarSenha("");
+      }
+
+      aplicarUsuarioAtualizado(usuarioAtualizado);
+
+      if (preferencias.notif_push && "Notification" in window) {
+        Notification.requestPermission().catch(() => undefined);
+      }
+
+      toast.sucesso("Configurações salvas com sucesso!");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -150,10 +233,8 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-5">
-          {/* ── PERFIL ── */}
           <SectionCard icon={<CircleUserRound size={18} />} title="Perfil">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-              {/* Avatar */}
               <div className="flex items-center gap-4">
                 <div
                   className="relative h-16 w-16 cursor-pointer group"
@@ -173,7 +254,6 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  {/* Overlay */}
                   <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     {uploadandoAvatar ? (
                       <Loader2 size={18} className="text-white animate-spin" />
@@ -228,15 +308,34 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* ── NOTIFICAÇÕES ── */}
           <SectionCard icon={<Bell size={18} />} title="Notificações">
             <div className="space-y-4">
               {[
-                ["Notificações por email", "Receba atualizações no seu email", emailNotifs, setEmailNotifs],
-                ["Notificações push", "Notificações no navegador", pushNotifs, setPushNotifs],
-                ["Atualizações de tarefas", "Quando tarefas são criadas ou atualizadas", taskUpdates, setTaskUpdates],
-                ["Comentários", "Quando alguém comentar em suas tarefas", comments, setComments],
-              ].map(([title, desc, checked, setter]) => (
+                [
+                  "Notificações da plataforma",
+                  "Exibir avisos gerais no centro de notificações",
+                  preferencias.notif_plataforma,
+                  "notif_plataforma",
+                ],
+                [
+                  "Notificações push",
+                  "Notificações no navegador",
+                  preferencias.notif_push,
+                  "notif_push",
+                ],
+                [
+                  "Atualizações de tarefas",
+                  "Quando tarefas são criadas ou atualizadas",
+                  preferencias.notif_tarefas,
+                  "notif_tarefas",
+                ],
+                [
+                  "Comentários",
+                  "Quando alguém comentar em suas tarefas",
+                  preferencias.notif_comentarios,
+                  "notif_comentarios",
+                ],
+              ].map(([title, desc, checked, chave]) => (
                 <div key={title as string} className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-slate-700">{title as string}</p>
@@ -244,20 +343,22 @@ export default function SettingsPage() {
                   </div>
                   <Toggle
                     checked={checked as boolean}
-                    onChange={() => (setter as React.Dispatch<React.SetStateAction<boolean>>)((v) => !v)}
+                    onChange={() => alternarPreferencia(chave as keyof PreferenciasUsuario)}
                   />
                 </div>
               ))}
             </div>
           </SectionCard>
 
-          {/* ── SEGURANÇA ── */}
           <SectionCard icon={<Shield size={18} />} title="Segurança">
             <div className="grid gap-4">
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-slate-600">Senha atual</span>
                 <input
                   type="password"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  autoComplete="current-password"
                   placeholder=""
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
@@ -266,6 +367,20 @@ export default function SettingsPage() {
                 <span className="mb-2 block text-sm font-medium text-slate-600">Nova senha</span>
                 <input
                   type="password"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder=""
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-600">Confirmar nova senha</span>
+                <input
+                  type="password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  autoComplete="new-password"
                   placeholder=""
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
@@ -273,11 +388,10 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* ── BOTÃO SALVAR ── */}
           <div className="flex justify-end pb-4">
             <button
               type="button"
-              onClick={handleSalvarPerfil}
+              onClick={handleSalvarConfiguracoes}
               disabled={salvandoPerfil}
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
             >

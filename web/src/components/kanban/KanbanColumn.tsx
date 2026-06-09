@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Tarefa } from "@/types";
 import { TaskCard } from "./TaskCard";
@@ -11,15 +12,11 @@ type KanbanColumnProps = {
   tarefas: Tarefa[];
   onAddTask: () => void;
   onSelectTask: (tarefa: Tarefa) => void;
-  onDeleteColumn?: () => void; // undefined = coluna padrão, sem botão deletar
+  onDeleteColumn?: () => void;
+  children?: ReactNode;
 };
 
-/**
- * Coluna do Kanban
- * - Largura fluida: min(400px, 80vw) — responsiva em mobile sem quebrar o layout
- * - Lista de tarefas com flex-1 para preencher a altura disponível
- * - Botão deletar ancorado ao rodapé via mt-auto (sempre embaixo, longe das tarefas)
- */
+//Coluna do Kanban
 export function KanbanColumn({
   title,
   count,
@@ -29,6 +26,7 @@ export function KanbanColumn({
   onAddTask,
   onSelectTask,
   onDeleteColumn,
+  children,
 }: KanbanColumnProps) {
   return (
     <section
@@ -61,8 +59,9 @@ export function KanbanColumn({
       </header>
 
       {/* Lista de tarefas — flex-1 faz preencher o espaço restante */}
+      {/* `children` é injetado pelo DroppableColumn (DnD); sem ele, usa o map padrão */}
       <div className="flex flex-col gap-3 flex-1 min-h-0">
-        {tarefas.map((tarefa) => (
+        {children ?? tarefas.map((tarefa) => (
           <TaskCard
             key={tarefa.id}
             tarefa={tarefa}

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -18,6 +19,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useNotificacoesSistema } from "@/contexts/NotificacoesSistemaContext";
 import { getUsuarioLogado, logout as logoutAuth } from "@/services/auth";
+import type { Usuario } from "@/types";
 
 import logo from "@/assets/Logo.svg";
 
@@ -30,8 +32,20 @@ interface NavItem {
 
 export function Sidebar() {
   const navigate = useNavigate();
-  const usuario = getUsuarioLogado();
+  const [usuario, setUsuario] = useState<Usuario | null>(() => getUsuarioLogado());
   const { totalNaoLidas } = useNotificacoesSistema();
+
+  useEffect(() => {
+    const atualizarUsuario = () => setUsuario(getUsuarioLogado());
+
+    window.addEventListener("usuario-atualizado", atualizarUsuario);
+    window.addEventListener("storage", atualizarUsuario);
+
+    return () => {
+      window.removeEventListener("usuario-atualizado", atualizarUsuario);
+      window.removeEventListener("storage", atualizarUsuario);
+    };
+  }, []);
 
   const navItems: NavItem[] = [
     {

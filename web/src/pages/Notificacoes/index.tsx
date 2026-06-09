@@ -1,33 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Bell,
-  BellOff,
-  Check,
-  CheckCheck,
-  CheckCircle2,
-  CircleAlert,
-  CircleDot,
-  Clock,
-  FolderOpen,
-  Info,
-  Loader2,
-  MessageSquare,
-  MoreVertical,
-  Paperclip,
-  Plus,
-  RefreshCw,
-  Trash2,
-  UserPlus,
-  Zap,
-} from "lucide-react";
+import {Bell, BellOff, Check, CheckCheck, CheckCircle2, CircleAlert, CircleDot, Clock, FolderOpen, Info, Loader2, MessageSquare, MoreVertical, Paperclip, Plus, RefreshCw, Trash2, UserPlus, Zap,} from "lucide-react";
 import { ConfirmDeleteModal } from "@/components/Modal/ConfirmDeleteModal";
 import { useNotificacoesSistema } from "@/contexts/NotificacoesSistemaContext";
 import type { NotificacaoSistema, TipoNotificacao } from "@/types";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
 
 function getIconePorTipo(tipo: TipoNotificacao) {
   switch (tipo) {
@@ -142,8 +119,6 @@ const GRUPOS: Grupo[] = ["Hoje", "Ontem", "Esta Semana", "Mais Antigas"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function NotificacoesPage() {
   const navigate = useNavigate();
   const {
@@ -176,7 +151,6 @@ export default function NotificacoesPage() {
   }, [recarregar]);
 
   // ── Ações ──────────────────────────────────────────────────────────────────
-
   async function handleMarcarLida(id: string) {
     setAcaoEmAndamento(id);
     try {
@@ -252,7 +226,6 @@ export default function NotificacoesPage() {
   const temNotificacoes = notificacoes.length > 0;
   const temLidas = notificacoes.some((n) => n.status === "LIDA");
 
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-16 pb-10 min-h-screen bg-slate-50">

@@ -12,7 +12,6 @@ interface TarefasStore {
   carregando: boolean;
   erro: string | null;
 
-  // Ações
   listar: () => Promise<void>;
   listarPorProjeto: (projetoId: string) => Promise<void>;
   criar: (payload: CriarTarefaPayload) => Promise<Tarefa>;
@@ -24,6 +23,7 @@ interface TarefasStore {
   adicionarAnexo: (tarefaId: string, arquivo: File) => Promise<Tarefa>;
   deletarAnexo: (tarefaId: string, anexoId: string) => Promise<void>;
   deletar: (tarefaId: string) => Promise<void>;
+  moverTarefa: (tarefaId: string, novoColumnId: string | null) => void;
   limpar: () => void;
 }
 
@@ -175,6 +175,19 @@ export const useTarefasStore = create<TarefasStore>((set: any) => ({
     } finally {
       set({ carregando: false });
     }
+  },
+
+  moverTarefa: (tarefaId: string, novoColumnId: string | null) => {
+    set((state: TarefasStore) => ({
+      tarefas: state.tarefas.map((t) => {
+        if (t.id !== tarefaId) return t;
+        return {
+          ...t,
+          id_coluna: novoColumnId,
+          coluna: t.coluna ? { ...t.coluna, id: novoColumnId ?? t.coluna.id } : t.coluna,
+        };
+      }),
+    }));
   },
 
   limpar: () => {

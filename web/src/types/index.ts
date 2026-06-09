@@ -12,10 +12,18 @@ export interface Usuario {
   email: string;
   login: string;
   foto_url?: string | null;
+  preferencias?: PreferenciasUsuario | null;
   perfil?: "ADMIN" | "GERENTE" | "USUARIO";
   status?: "ATIVO" | "PENDENTE" | "DESATIVADO";
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PreferenciasUsuario {
+  notif_plataforma?: boolean;
+  notif_push?: boolean;
+  notif_tarefas?: boolean;
+  notif_comentarios?: boolean;
 }
 
 // ============================================

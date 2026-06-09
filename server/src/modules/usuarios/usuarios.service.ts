@@ -1,4 +1,5 @@
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import prisma from "../../lib/prisma";
 
 export const criarUsuarioEquipeSchema = z.object({
@@ -91,6 +92,7 @@ export async function listarUsuarios(usuarioId: string) {
       email: true,
       login: true,
       foto_url: true,
+      preferencias: true,
       perfil: true,
     },
   });
@@ -127,10 +129,111 @@ export async function atualizarAvatar(usuarioId: string, foto_url: string) {
       email: true,
       login: true,
       foto_url: true,
+      preferencias: true,
       perfil: true,
     },
   });
   return usuario;
+}
+
+// ──────────────────────────────────────────────────────────
+// Obter perfil completo (inclui preferências)
+// ──────────────────────────────────────────────────────────
+export async function obterPerfil(usuarioId: string) {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: {
+      id: true,
+      nome: true,
+      email: true,
+      login: true,
+      foto_url: true,
+      perfil: true,
+      preferencias: true,
+    },
+  });
+
+  if (!usuario) {
+    const error = new Error("Usuário não encontrado.");
+    (error as NodeJS.ErrnoException).code = "NOT_FOUND";
+    throw error;
+  }
+
+  return usuario;
+}
+
+// ──────────────────────────────────────────────────────────
+// Alterar senha
+// ──────────────────────────────────────────────────────────
+export const alterarSenhaSchema = z.object({
+  senha_atual: z.string().min(1, "Informe sua senha atual."),
+  nova_senha: z
+    .string()
+    .min(6, "A nova senha deve ter pelo menos 6 caracteres."),
+});
+
+export async function alterarSenha(usuarioId: string, data: unknown) {
+  const { senha_atual, nova_senha } = alterarSenhaSchema.parse(data);
+
+  // Buscar usuário com a senha hash
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { id: true, senha: true },
+  });
+
+  if (!usuario) {
+    const error = new Error("Usuário não encontrado.");
+    (error as NodeJS.ErrnoException).code = "NOT_FOUND";
+    throw error;
+  }
+
+  // Verificar senha atual
+  const senhaCorreta = await bcrypt.compare(senha_atual, usuario.senha);
+  if (!senhaCorreta) {
+    const error = new Error("Senha atual incorreta.");
+    (error as NodeJS.ErrnoException).code = "UNAUTHORIZED";
+    throw error;
+  }
+
+  // Hashar e salvar nova senha
+  const novaHash = await bcrypt.hash(nova_senha, 10);
+  await prisma.usuario.update({
+    where: { id: usuarioId },
+    data: { senha: novaHash },
+  });
+}
+
+// ──────────────────────────────────────────────────────────
+// Preferências de notificação
+// ──────────────────────────────────────────────────────────
+export const salvarPreferenciasSchema = z.object({
+  notif_push: z.boolean().optional(),
+  notif_tarefas: z.boolean().optional(),
+  notif_comentarios: z.boolean().optional(),
+  notif_plataforma: z.boolean().optional(),
+});
+
+export async function salvarPreferencias(usuarioId: string, data: unknown) {
+  const payload = salvarPreferenciasSchema.parse(data);
+
+  // Buscar preferências atuais para fazer merge
+  const atual = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { preferencias: true },
+  });
+
+  const preferenciasAtuais =
+    (atual?.preferencias as Record<string, unknown> | null) ?? {};
+
+  const mergeadas = { ...preferenciasAtuais, ...payload };
+
+  const usuario = await prisma.usuario.update({
+    where: { id: usuarioId },
+    data: { preferencias: mergeadas },
+    select: { preferencias: true },
+  });
+
+  return usuario.preferencias;
 }
 
 //atualiza nome e email
@@ -162,6 +265,7 @@ export async function atualizarPerfil(usuarioId: string, data: unknown) {
       email: true,
       login: true,
       foto_url: true,
+      preferencias: true,
       perfil: true,
     },
   });

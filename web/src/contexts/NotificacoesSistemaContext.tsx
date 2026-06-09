@@ -17,6 +17,7 @@ import React, {
 import type { NotificacaoSistema } from "@/types";
 import * as notificacaoService from "@/services/notificacaoService";
 import { getUsuarioLogado } from "@/services/auth";
+import { normalizarPreferencias } from "@/services/usuarioService";
 
 interface NotificacoesSistemaContextType {
   notificacoes: NotificacaoSistema[];
@@ -36,6 +37,44 @@ const NotificacoesSistemaContext = createContext<
 
 const POLLING_INTERVAL_MS = 10_000; // 10 segundos
 
+const TIPOS_TAREFA = new Set([
+  "TAREFA_ATRIBUIDA",
+  "TAREFA_CRIADA",
+  "TAREFA_ATUALIZADA",
+  "TAREFA_CONCLUIDA",
+  "TAREFA_EXCLUIDA",
+  "TAREFA_MOVIDA",
+]);
+
+const TIPOS_PLATAFORMA = new Set([
+  "GERAL",
+  "MEMBRO_ADICIONADO_PROJETO",
+  "ANEXO_ADICIONADO",
+  "PROJETO_ATUALIZADO",
+  "PRAZO_24H",
+  "PRAZO_48H",
+]);
+
+function filtrarPorPreferencias(notificacoes: NotificacaoSistema[]) {
+  const preferencias = normalizarPreferencias(getUsuarioLogado()?.preferencias);
+
+  return notificacoes.filter((notificacao) => {
+    if (!preferencias.notif_comentarios && notificacao.tipo === "COMENTARIO_ADICIONADO") {
+      return false;
+    }
+
+    if (!preferencias.notif_tarefas && TIPOS_TAREFA.has(notificacao.tipo)) {
+      return false;
+    }
+
+    if (!preferencias.notif_plataforma && TIPOS_PLATAFORMA.has(notificacao.tipo)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 export function NotificacoesSistemaProvider({
   children,
 }: {
@@ -54,8 +93,11 @@ export function NotificacoesSistemaProvider({
     try {
       setCarregando(true);
       const dados = await notificacaoService.listarNotificacoes();
-      setNotificacoes(dados.notificacoes);
-      setTotalNaoLidas(dados.totalNaoLidas);
+      const filtradas = filtrarPorPreferencias(dados.notificacoes);
+      setNotificacoes(filtradas);
+      setTotalNaoLidas(
+        filtradas.filter((notificacao) => notificacao.status === "NAO_LIDA").length
+      );
     } catch {
       // Silencia erros de polling — não interrompe a UX
     } finally {
@@ -76,10 +118,12 @@ export function NotificacoesSistemaProvider({
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("usuario-atualizado", recarregar);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("usuario-atualizado", recarregar);
     };
   }, [recarregar]);
 

@@ -1,7 +1,8 @@
-import { useState, useRef, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Camera, Loader2, User } from "lucide-react";
+import { Sidebar } from "@/components/Sidebar";
 import { registrarComFormData } from "@/services/auth";
-import { Camera, User } from "lucide-react";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -14,20 +15,19 @@ export default function Register() {
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
-  //pfp
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const fotoInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    //validando
     if (!file.type.startsWith("image/")) {
       setErro("Selecione uma imagem válida (JPEG, PNG, GIF ou WebP).");
       return;
     }
+
     if (file.size > 5 * 1024 * 1024) {
       setErro("A imagem deve ter no máximo 5 MB.");
       return;
@@ -35,6 +35,7 @@ export default function Register() {
 
     setFotoFile(file);
     setErro(null);
+
     const reader = new FileReader();
     reader.onload = (ev) => setFotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -74,132 +75,195 @@ export default function Register() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-r from-[#cfd5df] to-[#e4e7ec] flex items-center justify-center">
+    <div className="fixed inset-0 flex items-center justify-center overflow-x-hidden overflow-y-auto bg-[#f5f7ff] px-4 py-6 max-md:items-start max-md:px-3 max-md:pb-3 max-md:pt-20">
 
-      <div className="bg-white w-[350px] p-8 rounded-xl shadow-[0_5px_20px_rgba(0,0,0,0.1)] text-center">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden max-md:hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(95,91,255,0.22),transparent_30%),radial-gradient(circle_at_84%_18%,rgba(108,43,217,0.20),transparent_26%),linear-gradient(135deg,#f8f9ff_0%,#eef2ff_48%,#f7f1ff_100%)]" />
+        <div className="absolute -left-24 top-16 h-72 w-72 rounded-full bg-[#5f5bff]/25 blur-3xl" />
+        <div className="absolute bottom-[-120px] right-[-80px] h-96 w-96 rounded-full bg-[#6c2bd9]/20 blur-3xl" />
+        <div className="absolute right-[18%] top-[18%] h-32 w-32 rounded-full border border-white/70 bg-white/20 blur-sm" />
+      </div>
 
-        <h2 className="text-xl font-semibold mb-1">
-          Crie sua conta
-        </h2>
+      <div className="relative flex h-[620px] w-[1100px] max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl shadow-[0_20px_50px_rgba(44,36,112,0.14)] max-md:min-h-[calc(100vh-5.75rem)] max-md:w-full max-md:max-w-none max-md:rounded-2xl max-md:border max-md:border-slate-200 max-md:shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
 
-        <p className="text-sm text-gray-500 mb-5">
-          Preencha os dados abaixo para começar
-        </p>
+        {/* ESQUERDA */}
+        <div className="flex w-1/2 flex-col justify-center bg-gradient-to-br from-[#5f5bff] to-[#6c2bd9] px-[70px] py-[80px] text-white max-md:hidden">
+          <h1 className="mb-5 text-[36px] font-semibold">
+            Comece com a sua equipe
+          </h1>
 
-        {/* AVATAR */}
-        <div className="mb-5">
-          <div
-            className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto relative cursor-pointer group overflow-hidden ring-2 ring-offset-2 ring-transparent hover:ring-[#5a4bff] transition-all"
-            onClick={() => fotoInputRef.current?.click()}
-          >
-            {fotoPreview ? (
-              <img
-                src={fotoPreview}
-                alt="Preview do avatar"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User size={32} className="text-gray-400" />
-            )}
-            {/* Overlay ao hover */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera size={20} className="text-white" />
-            </div>
-
-            {/* Botão + no canto */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); fotoInputRef.current?.click(); }}
-              className="absolute bottom-0 right-0 bg-[#5a4bff] text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:opacity-90 z-10"
-            >
-              <Camera size={12} />
-            </button>
-          </div>
-
-          <input
-            ref={fotoInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            className="hidden"
-            onChange={handleFotoChange}
-          />
-
-          <p className="text-xs text-gray-500 mt-2">
-            {fotoFile ? fotoFile.name : "Clique no ícone para adicionar foto"}
+          <p className="max-w-[380px] text-sm leading-[1.7] opacity-90">
+            Crie sua conta para organizar projetos, acompanhar entregas e colaborar
+            com mais clareza desde o primeiro acesso.
           </p>
+
+          <div className="mt-10 flex items-center gap-2 text-sm opacity-90">
+            <span aria-hidden="true">-</span>
+            <span>Seu fluxo de trabalho começa aqui</span>
+          </div>
         </div>
 
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        {/* DIREITA */}
+        <div className="flex w-1/2 items-center justify-center bg-white md:bg-[#f9fafb] max-md:w-full max-md:px-5 max-md:py-6">
+          <div className="w-[75%] max-md:w-full max-md:max-w-md">
 
-          {/* ERRO */}
-          {erro && (
-            <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm text-left">
-              {erro}
+            <h2 className="mb-1 text-[26px] font-semibold">
+              Criar conta
+            </h2>
+
+            <p className="mb-4 text-[13px] text-gray-500">
+              Preencha os dados abaixo para começar
+            </p>
+
+            <div className="mb-4 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+              <button
+                type="button"
+                onClick={() => fotoInputRef.current?.click()}
+                className="group relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 outline-none transition hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-slate-300"
+                aria-label={fotoPreview ? "Trocar foto de perfil" : "Adicionar foto de perfil"}
+              >
+                {fotoPreview ? (
+                  <img
+                    src={fotoPreview}
+                    alt="Preview da foto de perfil"
+                    className="h-full w-full object-cover object-center"
+                  />
+                ) : (
+                  <User size={24} className="text-slate-400" />
+                )}
+
+                <span className="absolute inset-0 grid place-items-center bg-slate-900/45 text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <Camera size={18} />
+                </span>
+              </button>
+
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-[12.5px] font-medium text-gray-800">
+                  Foto de perfil
+                </p>
+                {fotoFile && (
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    {fotoFile.name}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fotoInputRef.current?.click()}
+                  className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-[#6c2bd9] outline-none transition hover:text-[#5120b2] focus-visible:rounded focus-visible:ring-2 focus-visible:ring-[#6c2bd9]/20"
+                >
+                  <Camera size={13} />
+                  {fotoPreview ? "Trocar foto" : "Adicionar foto"}
+                </button>
+              </div>
+
+              <input
+                ref={fotoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleFotoChange}
+              />
             </div>
-          )}
 
-          <input
-            type="text"
-            placeholder="Seu nome completo"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#5a4bff] focus:ring-2 focus:ring-[#5a4bff]/10 outline-none"
-          />
+            <form onSubmit={handleSubmit}>
+              {/* ERRO */}
+              {erro && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-600">
+                  {erro}
+                </div>
+              )}
 
-          <input
-            type="text"
-            placeholder="usuario123"
-            value={login}
-            onChange={(e) => setLogin(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#5a4bff] focus:ring-2 focus:ring-[#5a4bff]/10 outline-none"
-          />
+              <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                <div>
+                  <label className="block text-[12.5px] text-gray-700">
+                    Nome completo
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Seu nome completo"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#6c2bd9] focus:ring-2 focus:ring-[#6c2bd9]/10"
+                  />
+                </div>
 
-          <input
-            type="email"
-            placeholder="nome@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#5a4bff] focus:ring-2 focus:ring-[#5a4bff]/10 outline-none"
-          />
+                <div>
+                  <label className="block text-[12.5px] text-gray-700">
+                    Usuário
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="usuario123"
+                    value={login}
+                    onChange={(e) => setLogin(e.target.value)}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#6c2bd9] focus:ring-2 focus:ring-[#6c2bd9]/10"
+                  />
+                </div>
+              </div>
 
-          <input
-            type="password"
-            placeholder="Senha (mín. 6 caracteres)"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#5a4bff] focus:ring-2 focus:ring-[#5a4bff]/10 outline-none"
-          />
+              <label className="mt-3 block text-[12.5px] text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="nome@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#6c2bd9] focus:ring-2 focus:ring-[#6c2bd9]/10"
+              />
 
-          <input
-            type="password"
-            placeholder="Confirmar senha"
-            value={confirmarSenha}
-            onChange={(e) => setConfirmarSenha(e.target.value)}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-[#5a4bff] focus:ring-2 focus:ring-[#5a4bff]/10 outline-none"
-          />
+              <div className="mt-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                <div>
+                  <label className="block text-[12.5px] text-gray-700">
+                    Senha
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Mín. 6 caracteres"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#6c2bd9] focus:ring-2 focus:ring-[#6c2bd9]/10"
+                  />
+                </div>
 
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full mt-3 py-3 bg-[#5a4bff] text-white rounded-lg text-sm hover:bg-[#4838d1] disabled:opacity-60 disabled:cursor-not-allowed transition"
-          >
-            {carregando ? "Criando conta..." : "Criar conta"}
-          </button>
+                <div>
+                  <label className="block text-[12.5px] text-gray-700">
+                    Confirmar senha
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Repita a senha"
+                    value={confirmarSenha}
+                    onChange={(e) => setConfirmarSenha(e.target.value)}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm outline-none focus:border-[#6c2bd9] focus:ring-2 focus:ring-[#6c2bd9]/10"
+                  />
+                </div>
+              </div>
 
-        </form>
+              <button
+                type="submit"
+                disabled={carregando}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#5f5bff] to-[#6c2bd9] py-3 text-sm text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {carregando && <Loader2 size={16} className="animate-spin" />}
+                {carregando ? "Criando conta..." : "Criar conta"}
+              </button>
+            </form>
 
-        <p className="mt-4 text-sm text-gray-500">
-          Já tem uma conta?{" "}
-          <a href="/login" className="text-[#5a4bff] font-medium">
-            Entrar
-          </a>
-        </p>
+            <p className="mt-4 text-center text-[13px] text-gray-500">
+              Já tem uma conta?{" "}
+              <Link to="/login" className="font-medium text-[#6c2bd9]">
+                Entrar
+              </Link>
+            </p>
+
+          </div>
+        </div>
 
       </div>
     </div>

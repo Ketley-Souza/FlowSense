@@ -84,7 +84,9 @@ export function CreateTaskModal({
         setColuna(task.id_coluna || "");
         setDataInicio(task.data_inicio ? task.data_inicio.split("T")[0] : "");
         setDataFim(task.data_fim ? task.data_fim.split("T")[0] : "");
-        setMembrosSelecionados(task.membros?.map((m: any) => m.id_usuario) || []);
+        setMembrosSelecionados(
+          (task.membros?.map((m: any) => m.id_usuario ?? m.usuario?.id).filter(Boolean) as string[]) || []
+        );
         setSubtarefas(task.subtarefas?.map((s: any) => ({ id: s.id, titulo: s.titulo, concluida: s.concluida })) || []);
         setNovaSubtarefa("");
         setTagsSelecionadas(task.tags?.map((tt: any) => ({ id: tt.tag.id, nome: tt.tag.nome, cor: tt.tag.cor })) || []);

@@ -27,6 +27,11 @@ enum StatusNotificacao {
 enum TipoNotificacao {
   MEMBRO_ADICIONADO_PROJETO
   TAREFA_ATRIBUIDA
+  TAREFA_CRIADA
+  TAREFA_ATUALIZADA
+  TAREFA_CONCLUIDA
+  TAREFA_EXCLUIDA
+  ANEXO_ADICIONADO
   PROJETO_ATUALIZADO
   COMENTARIO_ADICIONADO
   PRAZO_24H
@@ -67,14 +72,15 @@ enum TipoToken {
 //models
 
 model Usuario {
-  id       String  @id @default(uuid())
-  nome     String
-  email    String  @unique
-  login    String  @unique
-  senha    String
-  foto_url String?
-  perfil   Perfil  @default(USUARIO)
-  status   StatusUsuario @default(ATIVO)
+  id           String        @id @default(uuid())
+  nome         String
+  email        String        @unique
+  login        String        @unique
+  senha        String
+  foto_url     String?
+  perfil       Perfil        @default(USUARIO)
+  status       StatusUsuario @default(ATIVO)
+  preferencias Json?         // { notif_push: bool, notif_tarefas: bool, notif_comentarios: bool }
 
   projetosMembro      ProjetoMembro[]
   tarefasResponsaveis Tarefa[]          @relation("ResponsavelPelaTarefa")

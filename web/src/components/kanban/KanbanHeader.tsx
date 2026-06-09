@@ -2,12 +2,10 @@ import { Filter, Plus, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { BoardViewTabs, type ViewMode } from "./BoardViewTabs";
-import { getUsuarioLogado } from "@/services/auth";
 import { useProjetosStore } from "@/store/useProjetosStore";
 
 type KanbanHeaderProps = {
   projectName: string;
-  activeProjectLabel?: string;
   onCreateColumn: () => void;
   onCreateTask: () => void;
   view: ViewMode;
@@ -18,14 +16,7 @@ type KanbanHeaderProps = {
   children?: ReactNode;
 };
 
-/**
- * Header principal do Kanban
- * Sem botão "Nova Tarefa" (as colunas já têm o "+")
- * Filtros com badge quando ativos
- */
 export function KanbanHeader({
-  projectName,
-  activeProjectLabel,
   onCreateColumn,
   view,
   onChangeView,
@@ -42,91 +33,79 @@ export function KanbanHeader({
     }
   }, [projetos.length, listar]);
 
-  const usuario = getUsuarioLogado();
-  const nomeUsuario = usuario?.nome ?? "Usuário";
-  const inicialUsuario = nomeUsuario.charAt(0).toUpperCase();
+  const seletorProjeto = (
+    <div className="relative h-12 w-full max-w-full rounded-full bg-[#EDF2F8] p-1 sm:w-40">
+      <select
+        value={projetoAtual?.id || ""}
+        onChange={(e) => {
+          const selected = projetos.find((p) => p.id === e.target.value);
+          definirProjetoAtivo(selected || null);
+        }}
+        className="h-10 w-full cursor-pointer appearance-none truncate rounded-full bg-white pl-4 pr-9 text-sm font-bold text-[#202A3D] shadow-[0_6px_18px_rgba(72,84,111,0.12)] transition hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-[#5B35F5]/20"
+      >
+        <option value="">Selecione um Projeto...</option>
+        {projetos.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.nome}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={18}
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#5147F5]"
+      />
+    </div>
+  );
 
   return (
     <div className="border-b border-[#DFE7F2] bg-white">
-
-      {/* Main section */}
-      <section className="flex min-h-[130px] flex-col gap-5 px-6 pt-6 md:pt-16 pb-5 xl:flex-row xl:items-center">
-        {/* Avatar do projeto */}
-        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-[#E6EAFF]">
-          <div className="relative h-14 w-14 overflow-hidden rounded-full bg-[#7578FF]">
-            <div className="absolute inset-x-0 bottom-0 h-7 bg-[#5048E7]" />
+      <section className="min-h-[130px] px-6 pb-5 pt-6 md:pt-16">
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-4 xl:flex-nowrap">
+          <div className="order-1 grid h-20 w-20 shrink-0 place-items-center rounded-full bg-[#E6EAFF]">
+            <div className="relative h-14 w-14 overflow-hidden rounded-full bg-[#7578FF]">
+              <div className="absolute inset-x-0 bottom-0 h-7 bg-[#5048E7]" />
+            </div>
           </div>
-        </div>
 
-        <div className="min-w-0 flex-1">
-          {/* Título + ações */}
-          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <select
-                  value={projetoAtual?.id || ""}
-                  onChange={(e) => {
-                    const selected = projetos.find((p) => p.id === e.target.value);
-                    definirProjetoAtivo(selected || null);
-                  }}
-                  className="appearance-none pr-9 pl-4 py-2 bg-[#F4F7FB] border border-[#DDE7F3] rounded-xl text-lg font-bold text-[#202A3D] focus:outline-none focus:ring-2 focus:ring-[#5B35F5]/20 cursor-pointer hover:bg-slate-100 transition-colors"
-                >
-                  <option value="">Selecione um Projeto...</option>
-                  {projetos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#7E8DA6]"
-                />
-              </div>
-              {activeProjectLabel && (
-                <span className="px-2.5 py-0.5 rounded-full bg-[#EEF1FF] text-[#5B35F5] text-xs font-bold border border-[#DDE7F3]">
-                  {activeProjectLabel}
+          <div className="order-3 w-full min-w-0 xl:order-2 xl:w-auto xl:flex-1">
+            <BoardViewTabs view={view} onChangeView={onChangeView}>
+              <div className="hidden xl:block">{seletorProjeto}</div>
+            </BoardViewTabs>
+          </div>
+
+          <div className="order-4 w-full xl:hidden">{seletorProjeto}</div>
+
+          <div className="order-2 ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 xl:order-3">
+            {children}
+
+            <button
+              type="button"
+              onClick={onToggleFiltros}
+              className={[
+                "relative inline-flex h-[37px] items-center gap-2 rounded-full border px-4 text-sm font-semibold transition",
+                filtrosAbertos || temFiltroAtivo
+                  ? "border-[#5B35F5] bg-[#EEF1FF] text-[#5B35F5]"
+                  : "border-[#DDE7F3] bg-white text-[#344158] hover:bg-slate-50",
+              ].join(" ")}
+            >
+              <Filter size={16} />
+              Filtros
+              {temFiltroAtivo && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF4F58] text-[9px] font-bold text-white">
+                  !
                 </span>
               )}
-            </div>
+            </button>
 
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {children}
-
-              {/* Filtros — badge quando ativo */}
-              <button
-                type="button"
-                onClick={onToggleFiltros}
-                className={[
-                  "relative inline-flex h-[37px] items-center gap-2 rounded-full border px-4 text-sm font-semibold transition",
-                  filtrosAbertos || temFiltroAtivo
-                    ? "border-[#5B35F5] bg-[#EEF1FF] text-[#5B35F5]"
-                    : "border-[#DDE7F3] bg-white text-[#344158] hover:bg-slate-50",
-                ].join(" ")}
-              >
-                <Filter size={16} />
-                Filtros
-                {temFiltroAtivo && (
-                  <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-[#FF4F58] text-[9px] font-bold text-white flex items-center justify-center">
-                    !
-                  </span>
-                )}
-              </button>
-
-              {/* Criar Coluna */}
-              <button
-                type="button"
-                onClick={onCreateColumn}
-                className="inline-flex h-[37px] items-center gap-2 rounded-full bg-[#5B35F5] px-4 text-sm font-bold text-white shadow-[0_4px_12px_rgba(91,53,245,0.25)] transition hover:bg-[#4D2DE0]"
-              >
-                <Plus size={16} />
-                Nova Coluna
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onCreateColumn}
+              className="inline-flex h-[37px] items-center gap-2 rounded-full bg-[#5B35F5] px-4 text-sm font-bold text-white shadow-[0_4px_12px_rgba(91,53,245,0.25)] transition hover:bg-[#4D2DE0]"
+            >
+              <Plus size={16} />
+              Nova Coluna
+            </button>
           </div>
-
-          {/* Views */}
-          <BoardViewTabs view={view} onChangeView={onChangeView} />
         </div>
       </section>
     </div>

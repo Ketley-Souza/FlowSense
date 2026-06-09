@@ -507,19 +507,21 @@ export async function criarTarefa(data: unknown, usuarioId: string) {
 
   const tarefaCompleta = await buscarTarefaCompleta(tarefa.id);
 
-  // Notificar responsável e membros sobre a nova tarefa
-  // Usa notificarTodos: o próprio usuário deve receber mesmo que tenha criado a tarefa
+  // Notificar responsável e membros sobre a nova tarefa.
+  // Usa notificarMembros (exclui o próprio criador) para evitar notificação duplicada
+  // quando o usuário que cria a tarefa é também o responsável.
   const destinatarios = [
     tarefaCompleta.id_responsavel,
     ...(tarefaCompleta.membros?.map((m) => m.id_usuario ?? "") ?? []),
   ].filter(Boolean) as string[];
 
-  await notificarTodos(
+  await notificarMembros(
     destinatarios,
     `Você foi atribuído à tarefa "${tarefaCompleta.titulo}" no projeto "${tarefaCompleta.projeto.nome}".`,
     "TAREFA_ATRIBUIDA",
     tarefaCompleta.id,
-    tarefaCompleta.id_projeto
+    tarefaCompleta.id_projeto,
+    usuarioId
   );
 
   return tarefaCompleta;
@@ -613,23 +615,70 @@ export async function atualizarTarefa(
 
   const tarefaAtualizada = await buscarTarefaCompleta(tarefaId);
 
-  // Verificar se houve alterações significativas na tarefa (título, descrição, prioridade, prazo)
+  // Verificar se houve alterações relevantes no CONTEÚDO da tarefa
+  // (excluindo id_coluna que já gera TAREFA_MOVIDA — evita notificação dupla)
   const houveMudancaRelevante =
     payload.titulo !== undefined ||
     payload.descricao !== undefined ||
     payload.prioridade !== undefined ||
-    payload.prazo !== undefined;
+    payload.prazo !== undefined ||
+    payload.subtarefas !== undefined ||
+    payload.id_membros !== undefined ||
+    payload.tags !== undefined;
 
-  if (houveMudancaRelevante) {
+  // Se apenas a coluna mudou (drag-drop no kanban) não há mudança de conteúdo
+  const apenasMoveuColuna =
+    payload.id_coluna !== undefined &&
+    payload.id_coluna !== tarefaAtual.id_coluna &&
+    !houveMudancaRelevante;
+
+  // ID do novo responsável (se foi alterado) — receberá TAREFA_ATRIBUIDA separado
+  const novoResponsavel =
+    payload.id_responsavel &&
+    payload.id_responsavel !== tarefaAtual.id_responsavel
+      ? payload.id_responsavel
+      : null;
+
+  // Envia TAREFA_ATUALIZADA somente quando houve mudança real de conteúdo
+  // e a tarefa NÃO foi apenas movida de coluna (evita duplicata com TAREFA_MOVIDA)
+  if (houveMudancaRelevante && !apenasMoveuColuna) {
     const destinatariosAlteracao = [
       tarefaAtualizada.id_responsavel,
       ...(tarefaAtualizada.membros?.map((m) => m.id_usuario ?? "") ?? []),
     ].filter(Boolean) as string[];
 
+    // Exclui o novo responsável do batch TAREFA_ATUALIZADA para evitar notificacao dupla
+    // (ele receberá TAREFA_ATRIBUIDA logo abaixo)
+    const destinatariosSemNovoResponsavel = novoResponsavel
+      ? destinatariosAlteracao.filter((id) => id !== novoResponsavel)
+      : destinatariosAlteracao;
+
+    if (destinatariosSemNovoResponsavel.length > 0) {
+      await notificarMembros(
+        destinatariosSemNovoResponsavel,
+        `A tarefa "${tarefaAtualizada.titulo}" foi atualizada no projeto "${tarefaAtualizada.projeto.nome}".`,
+        "TAREFA_ATUALIZADA",
+        tarefaId,
+        tarefaAtualizada.id_projeto,
+        usuarioId
+      );
+    }
+  }
+
+  // Notificar quando a tarefa é concluída (progresso atinge 100% pela primeira vez)
+  const foiConcluida =
+    tarefaAtualizada.progresso === 100 && tarefaAtual.progresso < 100;
+
+  if (foiConcluida) {
+    const destinatariosConclusao = [
+      tarefaAtualizada.id_responsavel,
+      ...(tarefaAtualizada.membros?.map((m) => m.id_usuario ?? "") ?? []),
+    ].filter(Boolean) as string[];
+
     await notificarMembros(
-      destinatariosAlteracao,
-      `A tarefa "${tarefaAtualizada.titulo}" (${tarefaAtualizada.projeto.nome}) foi atualizada.`,
-      "TAREFA_ATRIBUIDA",
+      destinatariosConclusao,
+      `A tarefa "${tarefaAtualizada.titulo}" foi concluida! (${tarefaAtualizada.projeto.nome})`,
+      "TAREFA_CONCLUIDA",
       tarefaId,
       tarefaAtualizada.id_projeto,
       usuarioId
@@ -657,14 +706,11 @@ export async function atualizarTarefa(
     );
   }
 
-  // Notificar se houve troca de responsável
-  if (
-    payload.id_responsavel &&
-    payload.id_responsavel !== tarefaAtual.id_responsavel
-  ) {
+  // Notificar se houve troca de responsável (somente o novo responsavel)
+  if (novoResponsavel) {
     await notificarMembros(
-      [payload.id_responsavel],
-      `Você se tornou responsável pela tarefa "${tarefaAtualizada.titulo}" no projeto "${tarefaAtualizada.projeto.nome}".`,
+      [novoResponsavel],
+      `Voce se tornou responsavel pela tarefa "${tarefaAtualizada.titulo}" no projeto "${tarefaAtualizada.projeto.nome}".`,
       "TAREFA_ATRIBUIDA",
       tarefaId,
       tarefaAtualizada.id_projeto,

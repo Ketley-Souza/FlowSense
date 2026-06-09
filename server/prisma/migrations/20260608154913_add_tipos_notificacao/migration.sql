@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "TipoNotificacao" ADD VALUE 'TAREFA_ATUALIZADA';
+ALTER TYPE "TipoNotificacao" ADD VALUE 'TAREFA_CONCLUIDA';
