@@ -702,7 +702,7 @@ export async function atualizarTarefa(
       // Tarefa marcada como concluída — notificação especial
       await notificarMembros(
         destinatariosTarefa,
-        `✅ Tarefa concluída: "${tarefaAtualizada.titulo}" (${tarefaAtualizada.projeto.nome}).`,
+        `Tarefa concluída: "${tarefaAtualizada.titulo}" (${tarefaAtualizada.projeto.nome}).`,
         "TAREFA_CONCLUIDA",
         tarefaId,
         tarefaAtualizada.id_projeto,
@@ -827,7 +827,7 @@ export async function adicionarAnexo(
 
   await notificarMembros(
     destinatarios,
-    `📎 Novo anexo adicionado à tarefa "${tarefaCompleta.titulo}": "${anexo.nome}".`,
+    `Novo anexo adicionado à tarefa "${tarefaCompleta.titulo}": "${anexo.nome}".`,
     "ANEXO_ADICIONADO",
     tarefaId,
     tarefaCompleta.id_projeto,
@@ -885,7 +885,7 @@ export async function deletarTarefa(
   // Notificar após a exclusão (as FKs já foram resolvidas antes)
   await notificarMembros(
     destinatarios,
-    `🗑️ A tarefa "${tarefaCompleta.titulo}" (${tarefaCompleta.projeto.nome}) foi excluída.`,
+    `A tarefa "${tarefaCompleta.titulo}" (${tarefaCompleta.projeto.nome}) foi excluída.`,
     "TAREFA_EXCLUIDA",
     null, // tarefaId não existe mais no banco
     tarefaCompleta.id_projeto,

@@ -247,7 +247,7 @@ export default function NotificacoesPage() {
                   não lida{totalNaoLidas !== 1 ? "s" : ""}
                 </>
               ) : (
-                "Tudo em dia por aqui ✓"
+                "Tudo em dia por aqui"
               )}
             </p>
           </div>

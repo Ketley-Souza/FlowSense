@@ -342,7 +342,7 @@ export async function verificarPrazosProximos() {
 
       notificacoesPrazo.push({
         id_usuario,
-        mensagem: `⚠️ Prazo em 24h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
+        mensagem: `Prazo em 24h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
         tipo: "PRAZO_24H",
         tarefaId: tarefa.id,
         projetoId: tarefa.id_projeto,
@@ -363,7 +363,7 @@ export async function verificarPrazosProximos() {
 
       notificacoesPrazo.push({
         id_usuario,
-        mensagem: `🕐 Prazo em 48h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
+        mensagem: `Prazo em 48h: "${tarefa.titulo}" (${tarefa.projeto.nome})`,
         tipo: "PRAZO_48H",
         tarefaId: tarefa.id,
         projetoId: tarefa.id_projeto,

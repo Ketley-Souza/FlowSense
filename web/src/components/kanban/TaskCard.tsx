@@ -9,7 +9,7 @@ import { AvatarStack } from "./AvatarStack";
 import {
   calcularProgressoTarefa,
   formatarDataBR,
-  obterNomesResponsaveis,
+  obterMembrosResponsaveis,
 } from "@/utils/kanban";
 
 const prioridadeClasses = {
@@ -37,7 +37,7 @@ type TaskCardProps = {
 export function TaskCard({ tarefa, progressColor, onClick }: TaskCardProps) {
   const progresso = calcularProgressoTarefa(tarefa);
   const isDone = progresso >= 100;
-  const nomes = obterNomesResponsaveis(tarefa);
+  const membros = obterMembrosResponsaveis(tarefa);
   const comentarios = tarefa._count?.comentarios ?? 0;
   const subtarefasConcluidas = tarefa.subtarefas?.filter((s) => s.concluida).length ?? 0;
   const totalSubtarefas = tarefa.subtarefas?.length ?? 0;
@@ -122,7 +122,7 @@ export function TaskCard({ tarefa, progressColor, onClick }: TaskCardProps) {
 
       {/* Rodapé: Avatares, Comentários e Subtarefas */}
       <div className="mt-4 flex items-center justify-between">
-        <AvatarStack names={nomes.length > 0 ? nomes : ["?"]} />
+        <AvatarStack membros={membros.length > 0 ? membros : [{ nome: "?" }]} />
 
         <div className="flex items-center gap-4 text-base font-bold text-[#202A3D]">
           {comentarios > 0 && (

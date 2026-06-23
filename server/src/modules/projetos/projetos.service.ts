@@ -575,7 +575,7 @@ export async function adicionarAnexoProjeto(
     const idsMembros = projeto.membros.map((m) => m.id_usuario);
     await notificarMembros(
       idsMembros,
-      `📎 Novo arquivo adicionado ao projeto "${projeto.nome}": "${anexo.nome}".`,
+      `Novo arquivo adicionado ao projeto "${projeto.nome}": "${anexo.nome}".`,
       "ANEXO_ADICIONADO",
       null,
       projetoId,

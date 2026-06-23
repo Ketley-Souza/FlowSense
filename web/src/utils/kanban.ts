@@ -190,6 +190,30 @@ export function obterNomesResponsaveis(tarefa: Tarefa): string[] {
 }
 
 /**
+ * Obtém lista de membros responsáveis com nome e foto_url
+ * Inclui: responsável principal + membros designados, sem duplicatas
+ */
+export function obterMembrosResponsaveis(
+  tarefa: Tarefa
+): Array<{ nome: string; foto_url?: string | null }> {
+  const vistos = new Set<string>();
+  const resultado: Array<{ nome: string; foto_url?: string | null }> = [];
+
+  const adicionar = (nome?: string, foto_url?: string | null) => {
+    if (!nome || vistos.has(nome)) return;
+    vistos.add(nome);
+    resultado.push({ nome, foto_url: foto_url ?? null });
+  };
+
+  adicionar(tarefa.responsavel?.nome, tarefa.responsavel?.foto_url);
+  tarefa.membros?.forEach((m) =>
+    adicionar(m.usuario?.nome, m.usuario?.foto_url)
+  );
+
+  return resultado;
+}
+
+/**
  * Obtém cor CSS para uma tag baseado no atributo cor
  */
 export function obterCorTag(cor?: string): string {

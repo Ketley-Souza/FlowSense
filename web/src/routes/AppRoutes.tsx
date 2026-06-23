@@ -6,7 +6,7 @@ import Register from "@/pages/Cadastro/Register";
 import AtivarConta from "@/pages/AtivarConta";
 
 import Dashboard from "@/pages/Dashboard";
-import Kamban from "@/pages/Kamban";
+import Kamban from "@/pages/Kanban";
 import Projetos from "@/pages/Projetos/Projects";
 import Equipe from "@/pages/Equipe";
 import Configuracoes from "@/pages/Configuracoes";
